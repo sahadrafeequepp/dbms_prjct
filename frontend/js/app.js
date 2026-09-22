@@ -35,7 +35,7 @@ function checkAuth() {
       applyRoleAccess(currentUser);
       closeModal('loginModal');
       return true;
-    } catch(e) {}
+    } catch (e) { }
   }
   // Default to Admin or show modal
   openModal('loginModal');
@@ -73,7 +73,7 @@ function applyRoleAccess(user) {
     welcomeH2.innerHTML = `Good Evening, ${firstName} 👋 <span class="role-badge ${isAdmin ? 'role-badge-admin' : 'role-badge-employee'}" style="font-size:12px; margin-left:8px; vertical-align:middle;">${user.role}</span>`;
   }
   if (welcomeP) {
-    welcomeP.innerText = isAdmin 
+    welcomeP.innerText = isAdmin
       ? "Here's what's happening with your company payroll system today."
       : "Welcome to your employee self-service portal. View payslips, salary certificates & attendance.";
   }
@@ -500,8 +500,8 @@ function renderEmployeesTable() {
 function renderDepartmentsGrid() {
   const container = document.getElementById('deptCardsContainer');
   container.innerHTML = appData.departments.map(dept => {
-    const count = dept.member_count !== undefined 
-      ? dept.member_count 
+    const count = dept.member_count !== undefined
+      ? dept.member_count
       : appData.employees.filter(e => (e.dept_id || e.deptId) === dept.id).length;
 
     return `
@@ -590,9 +590,9 @@ async function renderAttendanceTable() {
         </td>
         <td style="text-align: right;">
           ${isAdmin
-            ? `<button onclick="deleteEntity('attendance', '${att.id}')" style="color:var(--rose); font-size:12px; font-weight:600;">Delete</button>`
-            : `<span class="badge-active" style="padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;">Verified</span>`
-          }
+        ? `<button onclick="deleteEntity('attendance', '${att.id}')" style="color:var(--rose); font-size:12px; font-weight:600;">Delete</button>`
+        : `<span class="badge-active" style="padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;">Verified</span>`
+      }
         </td>
       </tr>
     `;
@@ -664,7 +664,7 @@ function viewCertificate(slipId) {
   document.getElementById('cert-emp-id').innerText = slip.emp_id || emp.id || 'EMP001';
   document.getElementById('cert-dept').innerText = deptName;
   document.getElementById('cert-grade').innerText = `${emp.grade_id || emp.gradeId || 'G2'} &bull; ${emp.designation || 'Specialist'}`;
-  
+
   const basic = slip.basic_pay !== undefined ? slip.basic_pay : slip.basicPay;
   const net = slip.net_salary !== undefined ? slip.net_salary : slip.netSalary;
   const leaveCut = slip.leave_cut || 0;
@@ -752,20 +752,20 @@ function openEntityModal(entityType, editId = null) {
       <div class="form-group">
         <label class="form-label">Department</label>
         <select class="form-control" data-key="dept_id">
-          ${appData.departments.map(d => `<option value="${d.id}" ${rec && (rec.dept_id||rec.deptId)===d.id ? 'selected':''}>${d.id} - ${d.name}</option>`).join('')}
+          ${appData.departments.map(d => `<option value="${d.id}" ${rec && (rec.dept_id || rec.deptId) === d.id ? 'selected' : ''}>${d.id} - ${d.name}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Salary Grade</label>
         <select class="form-control" data-key="grade_id">
-          ${appData.grades.map(g => `<option value="${g.id}" ${rec && (rec.grade_id||rec.gradeId)===g.id ? 'selected':''}>${g.id} - ${g.name}</option>`).join('')}
+          ${appData.grades.map(g => `<option value="${g.id}" ${rec && (rec.grade_id || rec.gradeId) === g.id ? 'selected' : ''}>${g.id} - ${g.name}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Status</label>
         <select class="form-control" data-key="status">
-          <option value="Active" ${rec && rec.status==='Active' ? 'selected':''}>Active</option>
-          <option value="On Leave" ${rec && rec.status==='On Leave' ? 'selected':''}>On Leave</option>
+          <option value="Active" ${rec && rec.status === 'Active' ? 'selected' : ''}>Active</option>
+          <option value="On Leave" ${rec && rec.status === 'On Leave' ? 'selected' : ''}>On Leave</option>
         </select>
       </div>
 
@@ -915,11 +915,11 @@ function handleGlobalSearch(query) {
     renderRecentEmployeesTable();
     return;
   }
-  const filtered = appData.employees.filter(e => 
+  const filtered = appData.employees.filter(e =>
     e.name.toLowerCase().includes(q) ||
     e.id.toLowerCase().includes(q) ||
     e.email.toLowerCase().includes(q) ||
-    (e.dept_name || getDeptName(e.dept_id||e.deptId)).toLowerCase().includes(q)
+    (e.dept_name || getDeptName(e.dept_id || e.deptId)).toLowerCase().includes(q)
   );
 
   const tbody = document.getElementById('recentEmployeesTableBody');
@@ -932,7 +932,7 @@ function handleGlobalSearch(query) {
           <div style="font-weight:700;">${emp.name}</div>
         </div>
       </td>
-      <td>${emp.dept_name || getDeptName(emp.dept_id||emp.deptId)}</td>
+      <td>${emp.dept_name || getDeptName(emp.dept_id || emp.deptId)}</td>
       <td class="mono font-semibold">${emp.grade_id || emp.gradeId}</td>
       <td><span class="status-badge badge-active">${emp.status}</span></td>
     </tr>
@@ -953,7 +953,7 @@ function exportData(type) {
     const rows = appData.employees.map(e => [
       e.id,
       `"${e.name}"`,
-      `"${e.dept_name || getDeptName(e.dept_id||e.deptId)}"`,
+      `"${e.dept_name || getDeptName(e.dept_id || e.deptId)}"`,
       `"${e.designation}"`,
       e.grade_id || e.gradeId,
       e.status
@@ -979,12 +979,12 @@ function exportData(type) {
 // -----------------------------------------------------------------------------
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-function openExportModal() { 
+function openExportModal() {
   if (currentUser && currentUser.role !== 'ADMIN') {
     showToast('Access restricted: Only Admin can export company reports.');
     return;
   }
-  openModal('exportModal'); 
+  openModal('exportModal');
 }
 
 function toggleDropdown(id) {

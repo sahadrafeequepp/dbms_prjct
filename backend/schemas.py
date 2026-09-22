@@ -10,7 +10,7 @@ from typing import Optional
 class LoginRequest(BaseModel):
     """User authentication payload."""
     username: str = Field(..., description="Username or registered email")
-    password: str =dbms_prjct Field(..., description="Account password")
+    password: str = Field(..., description="Account password")
 
 
 class EmployeeCreate(BaseModel):
