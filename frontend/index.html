@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payroll Register — Modern HR & Payroll DBMS</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Modular Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       SIDEBAR NAVIGATION
+       ======================================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Brand Header -->
+    <div class="sidebar-header">
+      <div class="brand-icon-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Payroll Register</h1>
+        <p>Group 4 &bull; DBMS Project</p>
+      </div>
+    </div>
+
+    <!-- Navigation Links -->
+    <nav class="nav-group">
+      <div class="nav-item active" data-tab="dashboard" onclick="switchNav('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        <span id="navDashboardLabel">Dashboard</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="employees" onclick="switchNav('employees')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Employees</span>
+        <span class="nav-badge" id="nav-emp-count">24</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="departments" onclick="switchNav('departments')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+        <span>Departments</span>
+        <span class="nav-badge" id="nav-dept-count">5</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="grades" onclick="switchNav('grades')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>Salary Grades</span>
+      </div>
+      <div class="nav-item" data-tab="attendance" onclick="switchNav('attendance')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+        <span id="navAttendanceLabel">Attendance</span>
+      </div>
+      <div class="nav-item" data-tab="payslips" onclick="switchNav('payslips')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span id="navPayslipsLabel">Payslips</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="payroll-run" onclick="switchNav('payroll-run')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        <span>Payroll Run</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="reports" onclick="switchNav('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+        <span>Reports</span>
+      </div>
+      <div class="nav-item admin-only" data-tab="settings" onclick="switchNav('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Settings</span>
+      </div>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="dark-mode-row">
+        <span class="mode-label">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <span>Dark Mode</span>
+        </span>
+        <div class="theme-switch" id="themeToggleBtn" onclick="toggleTheme()"></div>
+      </div>
+
+      <div class="sidebar-scenic">
+        <svg class="scenic-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+        </svg>
+        <div class="scenic-quote">
+          <strong>Better People</strong>
+          Better Tomorrow
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       MAIN WRAPPER
+       ======================================================================== -->
+  <div class="main-wrapper">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <header class="topbar">
+      <div class="search-container">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="globalSearchInput" class="search-input" placeholder="Search employees, departments, payslips..." oninput="handleGlobalSearch(this.value)">
+      </div>
+
+      <div class="topbar-right">
+        <!-- Date pill -->
+        <div class="date-pill" id="currentDateBadge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          <span id="dateTextDisplay">Tue, 10 Jun 2025</span>
+        </div>
+
+        <!-- Notification Bell -->
+        <div style="position: relative;">
+          <button class="notification-btn" onclick="toggleDropdown('notifDropdown')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="notif-badge"></span>
+          </button>
+          <div class="dropdown-menu" id="notifDropdown">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); font-weight: 700; font-size: 13px;">Notifications (3)</div>
+            <div class="dropdown-item">
+              <div>
+                <strong style="display:block; font-size:12px;">June 2025 Payroll Prepared</strong>
+                <span style="font-size:11px; color:var(--text-muted);">24 employee records calculated</span>
+              </div>
+            </div>
+            <div class="dropdown-item">
+              <div>
+                <strong style="display:block; font-size:12px;">Attendance Synced</strong>
+                <span style="font-size:11px; color:var(--text-muted);">Biometric log update complete</span>
+              </div>
+            </div>
+            <div class="dropdown-item">
+              <div>
+                <strong style="display:block; font-size:12px;">DBMS Project Submission</strong>
+                <span style="font-size:11px; color:var(--text-muted);">College of Engineering Vadakara</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Profile Pill -->
+        <div style="position: relative;">
+          <div class="user-profile-pill" onclick="toggleDropdown('profileDropdown')">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80" alt="Avatar" class="user-avatar" id="topbarAvatar">
+            <div class="user-info">
+              <div class="name" id="topbarUserName">Varna V</div>
+              <div style="display:flex; align-items:center; gap:4px; margin-top:1px;">
+                <span class="role-badge role-badge-admin" id="topbarRoleBadge">ADMIN</span>
+              </div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-sub); margin-left:2px;"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div class="dropdown-menu" id="profileDropdown">
+            <div style="padding: 14px 16px; border-bottom: 1px solid var(--border-subtle);">
+              <div style="font-weight: 700; font-size: 13px;" id="dropdownUserName">Varna V</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="dropdownUserEmail">varna@cev.ac.in &bull; Admin</div>
+            </div>
+            <div class="dropdown-item" onclick="switchNav('settings')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Project Team & Settings</span>
+            </div>
+            <div class="dropdown-item admin-only" onclick="confirmReset()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--rose);"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              <span style="color:var(--rose);">Reset Demo Database</span>
+            </div>
+            <div class="dropdown-item" onclick="logoutUser()" style="border-top: 1px solid var(--border-subtle); color: var(--primary);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              <strong>Switch Role / Sign Out</strong>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- MAIN VIEWPORT -->
+    <main class="content-viewport">
+
+      <!-- ====================================================================
+           TAB: DASHBOARD
+           ==================================================================== -->
+      <section id="tab-dashboard" class="tab-content active">
+        <!-- Welcome banner -->
+        <div class="welcome-header">
+          <div class="welcome-text">
+            <h2>Good Evening, Varna 👋</h2>
+            <p>Here's what's happening with your payroll system today.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-secondary admin-only" onclick="openExportModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Export Report
+            </button>
+            <button class="btn-primary admin-only" onclick="openEntityModal('employee')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+              Add Employee
+            </button>
+            <button class="btn-primary employee-only" onclick="openPayslipGeneratorModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Download My Payslip
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 TOP STAT CARDS -->
+        <div class="stats-grid">
+          <!-- Total Employees -->
+          <div class="card stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon-wrapper stat-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <span class="stat-three-dots admin-only" onclick="switchNav('employees')">&bull;&bull;&bull;</span>
+            </div>
+            <div>
+              <div class="stat-label">Total Employees</div>
+              <div class="stat-value" id="dash-total-emp">24</div>
+              <div class="stat-footer-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                <span>2 new this month</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Departments -->
+          <div class="card stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon-wrapper stat-icon-emerald">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 2a2 2 0 0 1 2 2v16"/><path d="M2 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14H2Z"/></svg>
+              </div>
+              <span class="stat-three-dots admin-only" onclick="switchNav('departments')">&bull;&bull;&bull;</span>
+            </div>
+            <div>
+              <div class="stat-label">Departments</div>
+              <div class="stat-value" id="dash-total-dept">5</div>
+              <div class="stat-footer-neutral">All departments active</div>
+            </div>
+          </div>
+
+          <!-- Monthly Payroll -->
+          <div class="card stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon-wrapper stat-icon-purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 6v12"/></svg>
+              </div>
+              <span class="stat-three-dots" onclick="switchNav('payslips')">&bull;&bull;&bull;</span>
+            </div>
+            <div>
+              <div class="stat-label">Monthly Payroll</div>
+              <div class="stat-value mono" id="dash-payroll-cost">₹ 3,42,500</div>
+              <div class="stat-footer-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                <span>8% from last month</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attendance Rate -->
+          <div class="card stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon-wrapper stat-icon-cyan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <span class="stat-three-dots" onclick="switchNav('attendance')">&bull;&bull;&bull;</span>
+            </div>
+            <div>
+              <div class="stat-label">Attendance Rate</div>
+              <div class="stat-value" id="dash-attendance-rate">96.2%</div>
+              <div class="stat-footer-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                <span>2.4% from last month</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MIDDLE ROW: 2 CHARTS + RECENT ACTIVITY -->
+        <div class="dashboard-mid-grid">
+          <!-- Bar Chart: Department-wise Employee Count (Admin) / Salary Components (Employee) -->
+          <div class="card">
+            <div class="card-header-row">
+              <div class="card-title" id="dashChart1Title">Department-wise Employee Count</div>
+              <span id="dashChart1Sub" style="font-size: 11px; color: var(--text-sub); font-weight:600;">Active Headcount</span>
+            </div>
+            <div class="chart-container-box">
+              <canvas id="deptChartCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Line Chart: Monthly Payroll Trend (Admin) / Personal Net Pay Trend (Employee) -->
+          <div class="card">
+            <div class="card-header-row">
+              <div class="card-title" id="dashChart2Title">Monthly Payroll Trend</div>
+              <span id="dashChart2Sub" style="font-size: 11px; color: var(--text-sub); font-weight:600;">H1 FY2025</span>
+            </div>
+            <div class="chart-container-box">
+              <canvas id="trendChartCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Recent Activity Panel -->
+          <div class="card">
+            <div class="card-header-row">
+              <div class="card-title" id="dashActivityTitle">Recent Activity</div>
+              <a href="javascript:void(0)" class="card-action-link admin-only" onclick="switchNav('reports')">View all &rarr;</a>
+            </div>
+            <div class="activity-list" id="dashActivityList">
+              <!-- Dynamically populated via app.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTTOM ROW: RECENT EMPLOYEES & UPCOMING PAYROLL & QUICK ACTIONS -->
+        <div class="dashboard-bot-grid">
+          <!-- Recent Employees Table -->
+          <div class="card" style="padding-bottom: 12px;">
+            <div class="card-header-row">
+              <div class="card-title" id="dashTableTitle">Recent Employees</div>
+              <a href="javascript:void(0)" class="card-action-link admin-only" onclick="switchNav('employees')">View all &rarr;</a>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Grade</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentEmployeesTableBody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Upcoming Payroll Section -->
+          <div class="card">
+            <div class="card-header-row">
+              <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                Upcoming Payroll
+              </div>
+              <a href="javascript:void(0)" class="card-action-link admin-only" onclick="switchNav('payroll-run')">View all &rarr;</a>
+            </div>
+
+            <!-- Purple Run Banner -->
+            <div class="upcoming-banner">
+              <div class="banner-content">
+                <div class="label">Next Payroll Run</div>
+                <div class="date">30 Jun 2025</div>
+                <div class="sub">Process payroll for June 2025</div>
+              </div>
+              <button class="btn-run-payroll" onclick="openPayrollModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Payroll
+              </button>
+            </div>
+
+            <!-- Payroll Breakdown Summary -->
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--text-main);">Payroll Summary (June 2025)</div>
+            <div class="summary-metrics">
+              <div class="summary-row">
+                <span class="metric-name">Total Employees</span>
+                <span class="metric-val mono" id="sum-employees-count">24</span>
+              </div>
+              <div class="summary-row">
+                <span class="metric-name">Total Gross Pay</span>
+                <span class="metric-val mono" id="sum-gross-pay">₹ 3,42,500</span>
+              </div>
+              <div class="summary-row">
+                <span class="metric-name">Total Deductions</span>
+                <span class="metric-val mono" style="color:var(--rose);" id="sum-deductions">₹ 48,250</span>
+              </div>
+              <div class="summary-row total">
+                <span class="metric-name" style="font-weight:700; color:var(--text-main);">Net Pay</span>
+                <span class="metric-val mono" id="sum-net-pay">₹ 2,94,250</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions Panel -->
+          <div class="card">
+            <div class="card-header-row">
+              <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#F59E0B;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Quick Actions
+              </div>
+            </div>
+
+            <div class="quick-actions-grid">
+              <!-- Admin Quick Actions -->
+              <button class="quick-action-btn admin-only" onclick="openEntityModal('employee')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                <span>Add Employee</span>
+              </button>
+
+              <button class="quick-action-btn admin-only" onclick="openEntityModal('department')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="10" x2="14" y1="10" y2="10"/></svg>
+                <span>Add Department</span>
+              </button>
+
+              <button class="quick-action-btn admin-only" onclick="openEntityModal('attendance')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><path d="m9 16 2 2 4-4"/></svg>
+                <span>Mark Attendance</span>
+              </button>
+
+              <button class="quick-action-btn admin-only" onclick="openPayslipGeneratorModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" x2="12" y1="12" y2="16"/><line x1="10" x2="14" y1="14" y2="14"/></svg>
+                <span>Generate Payslip</span>
+              </button>
+
+              <button class="quick-action-btn admin-only" onclick="openPayrollModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                <span>Run Payroll</span>
+              </button>
+
+              <button class="quick-action-btn admin-only" onclick="openExportModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                <span>Export Report</span>
+              </button>
+
+              <!-- Employee Quick Actions -->
+              <button class="quick-action-btn employee-only" onclick="switchNav('payslips')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>View My Payslips</span>
+              </button>
+
+              <button class="quick-action-btn employee-only" onclick="switchNav('attendance')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+                <span>My Attendance Log</span>
+              </button>
+
+              <button class="quick-action-btn employee-only" onclick="openPayslipGeneratorModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Salary Certificate</span>
+              </button>
+
+              <button class="quick-action-btn employee-only" onclick="window.print()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                <span>Print Statement</span>
+              </button>
+            </div>
+
+            <!-- Quote Box with botanical element -->
+            <div class="quote-box">
+              <p>&ldquo;People are the heart of every organization.&rdquo;</p>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin-left:auto; color:var(--primary); opacity:0.4;">
+                <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: EMPLOYEES
+           ==================================================================== -->
+      <section id="tab-employees" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Employee Master Registry</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Manage personnel records, departments, and mapped salary grades.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <select id="filterEmpDept" class="form-control" onchange="renderEmployeesTable()" style="padding: 8px 12px; font-size: 13px;">
+              <option value="ALL">All Departments</option>
+            </select>
+            <button class="btn-primary" onclick="openEntityModal('employee')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+              Add New Employee
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Employee</th>
+                <th>Email</th>
+                <th>Designation</th>
+                <th>Department</th>
+                <th>Salary Grade</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="allEmployeesTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: DEPARTMENTS
+           ==================================================================== -->
+      <section id="tab-departments" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Organizational Departments</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Departments govern operational units, management chains, and team allocations.</p>
+          </div>
+          <button class="btn-primary" onclick="openEntityModal('department')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+            Add Department
+          </button>
+        </div>
+
+        <div class="dept-cards-grid" id="deptCardsContainer">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: SALARY GRADES
+           ==================================================================== -->
+      <section id="tab-grades" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Salary Grade Pay Bands</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Configured salary structures detailing basic pay, standard allowances, and base deductions.</p>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted);">Defined in DBMS `salary_grades` table.</div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Grade Code</th>
+                <th>Grade Title</th>
+                <th>Basic Pay</th>
+                <th>Allowances</th>
+                <th>Standard Deductions</th>
+                <th>Gross Benchmark</th>
+                <th>Net Benchmark</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="salaryGradesTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: ATTENDANCE
+           ==================================================================== -->
+      <section id="tab-attendance" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Monthly Attendance & Leave Register</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Attendance logs drive loss-of-pay calculations for monthly payroll computation.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <select id="attendanceMonthFilter" class="form-control" onchange="renderAttendanceTable()" style="padding: 8px 12px; font-size: 13px;">
+              <option value="June 2025">June 2025</option>
+              <option value="July 2025">July 2025</option>
+            </select>
+            <button class="btn-primary admin-only" onclick="openEntityModal('attendance')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+              Log Attendance
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Log ID</th>
+                <th>Employee</th>
+                <th>Month</th>
+                <th>Days Present</th>
+                <th>Unpaid Leaves</th>
+                <th>Attendance %</th>
+                <th>Leave Deduction Effect</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: PAYSLIPS
+           ==================================================================== -->
+      <section id="tab-payslips" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Payslip Archive & Salary Certificates</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Official generated payslips ready for viewing, audit, and printing.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-secondary admin-only" onclick="openPayrollModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              Run Batch Payroll
+            </button>
+            <button class="btn-primary" onclick="openPayslipGeneratorModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              View Certificate
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Slip ID</th>
+                <th>Employee</th>
+                <th>Month</th>
+                <th>Basic Pay</th>
+                <th>Allowances</th>
+                <th>Deductions</th>
+                <th>Net Salary</th>
+                <th style="text-align: right;">Certificate</th>
+              </tr>
+            </thead>
+            <tbody id="payslipsTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: PAYROLL RUN
+           ==================================================================== -->
+      <section id="tab-payroll-run" class="tab-content">
+        <div class="card" style="max-width: 800px; margin: 0 auto; padding: 32px;">
+          <div style="text-align: center; margin-bottom: 28px;">
+            <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #6D5DFC, #4F46E5); color: #FFF; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(109, 93, 252, 0.4);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            </div>
+            <h2 style="font-size: 22px; font-weight: 800;">Execute Monthly Payroll Run</h2>
+            <p style="font-size: 13.5px; color: var(--text-muted); max-width: 480px; margin: 6px auto 0;">Computes employee attendance, calculates per-day leave cuts, sums allowances, and drafts digital payslips.</p>
+          </div>
+
+          <div style="background: var(--bg-surface-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">Target Payroll Cycle</span>
+              <select id="runCycleMonth" class="form-control" style="width: 180px; font-weight: 600;">
+                <option value="June 2025" selected>June 2025</option>
+                <option value="July 2025">July 2025</option>
+                <option value="August 2025">August 2025</option>
+              </select>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+              &bull; Formula applied: <code class="mono" style="color:var(--primary); font-weight:600;">Net = (Basic + Allowances) - (Standard Deductions + [Basic / 30 * Unpaid Leaves])</code><br>
+              &bull; Auto-links Employee &rarr; Department &rarr; Salary Grade ER schema.
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn-secondary" onclick="switchNav('dashboard')">Back to Dashboard</button>
+            <button class="btn-primary" onclick="executePayrollRun()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Execute Complete Payroll Run
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: REPORTS
+           ==================================================================== -->
+      <section id="tab-reports" class="tab-content">
+        <div class="page-header-actions">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 800;">Analytics & Compliance Reports</h2>
+            <p style="font-size: 13px; color: var(--text-muted);">Expenditure breakdowns, department headcount, and financial audit trails.</p>
+          </div>
+          <button class="btn-primary" onclick="openExportModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Export All Data
+          </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div class="card">
+            <div class="card-title" style="margin-bottom: 14px;">Summary Financial Statistics</div>
+            <div class="summary-metrics">
+              <div class="summary-row">
+                <span class="metric-name">Total Registered Workforce</span>
+                <span class="metric-val mono" id="rep-total-emp">24 Staff</span>
+              </div>
+              <div class="summary-row">
+                <span class="metric-name">Active Departments</span>
+                <span class="metric-val mono">5 Divisions</span>
+              </div>
+              <div class="summary-row">
+                <span class="metric-name">Total Monthly Gross Outflow</span>
+                <span class="metric-val mono" id="rep-gross-outflow">₹ 3,42,500</span>
+              </div>
+              <div class="summary-row">
+                <span class="metric-name">Standard Statutory Deductions</span>
+                <span class="metric-val mono" style="color:var(--rose);" id="rep-deductions">₹ 48,250</span>
+              </div>
+              <div class="summary-row total">
+                <span class="metric-name" style="font-weight:700;">Net Monthly Disbursed</span>
+                <span class="metric-val mono" id="rep-net-disbursed">₹ 2,94,250</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom: 14px;">Academic Project Credentials</div>
+            <div style="font-size: 13px; line-height: 1.6; color: var(--text-muted);">
+              <p><strong style="color:var(--text-main);">Project:</strong> Automated Payroll Database Management System (DBMS)</p>
+              <p><strong style="color:var(--text-main);">Institution:</strong> College of Engineering Vadakara (CEV)</p>
+              <p><strong style="color:var(--text-main);">Team Members (Group 4):</strong></p>
+              <ul style="margin-left: 20px; margin-top: 4px; color: var(--text-main);">
+                <li>Sahad Rafeeque P P</li>
+                <li>Varna V (Team Lead)</li>
+                <li>Gopika M M</li>
+              </ul>
+              <p style="margin-top: 8px;"><strong style="color:var(--text-main);">Database Relations:</strong> Employee, Department, SalaryGrade, AttendanceLog, PayslipArchive.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB: SETTINGS
+           ==================================================================== -->
+      <section id="tab-settings" class="tab-content">
+        <div class="card" style="max-width: 720px; margin: 0 auto; padding: 28px;">
+          <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">System Configuration</h2>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Manage database seed status, administrative profiles, and theme preferences.</p>
+
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border-subtle);">
+              <div>
+                <strong style="font-size: 14px; display: block; color: var(--text-main);">Active Administrator</strong>
+                <span style="font-size: 12.5px; color: var(--text-muted);">Varna V &bull; Lead HR &amp; DBMS Administrator</span>
+              </div>
+              <span class="status-badge badge-active">Active Session</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border-subtle);">
+              <div>
+                <strong style="font-size: 14px; display: block; color: var(--text-main);">Dark Mode Aesthetic</strong>
+                <span style="font-size: 12.5px; color: var(--text-muted);">Switch between crisp white SaaS theme and ultra-dark OLED navy theme</span>
+              </div>
+              <button class="btn-secondary" onclick="toggleTheme()">Toggle Theme</button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border-subtle);">
+              <div>
+                <strong style="font-size: 14px; display: block; color: var(--text-main);">Reset Database State</strong>
+                <span style="font-size: 12.5px; color: var(--text-muted);">Restores initial college seed data (24 staff, 5 departments, 3 salary grades)</span>
+              </div>
+              <button class="btn-danger-soft" onclick="confirmReset()">Restore Seed Data</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: ENTITY FORM (ADD/EDIT EMPLOYEE, DEPT, ATTENDANCE)
+       ======================================================================== -->
+  <div class="modal-backdrop" id="entityModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="entityModalTitle">Add Record</h3>
+        <button class="modal-close-btn" onclick="closeModal('entityModal')">&times;</button>
+      </div>
+      <form id="entityFormModal">
+        <div class="modal-body" id="entityModalFields">
+          <!-- Dynamically populated via js/app.js -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('entityModal')">Cancel</button>
+          <button type="button" class="btn-primary" onclick="handleEntitySubmit()" id="entitySubmitBtn">Save Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: PAYSLIP CERTIFICATE MODAL (OFFICIAL PRINTABLE)
+       ======================================================================== -->
+  <div class="modal-backdrop" id="payslipModal">
+    <div class="modal-window" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3>Payroll Salary Certificate</h3>
+        <button class="modal-close-btn" onclick="closeModal('payslipModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="print-area">
+          <div class="payslip-certificate">
+            <div class="college-header">
+              <h4>College of Engineering Vadakara (CEV)</h4>
+              <h2>Payroll Salary Certificate</h2>
+              <p>Department of Computer Science &amp; Engineering &bull; DBMS Project 2026</p>
+            </div>
+
+            <div class="slip-details-grid">
+              <div class="item">
+                <span>Certificate Slip No</span>
+                <strong class="mono" id="cert-slip-id">PS-JUN2025-EMP001</strong>
+              </div>
+              <div class="item">
+                <span>Payroll Month / Year</span>
+                <strong id="cert-month">June 2025</strong>
+              </div>
+              <div class="item">
+                <span>Employee Name</span>
+                <strong id="cert-emp-name">Raneem Muhammed</strong>
+              </div>
+              <div class="item">
+                <span>Employee ID</span>
+                <strong class="mono" id="cert-emp-id">EMP001</strong>
+              </div>
+              <div class="item">
+                <span>Department</span>
+                <strong id="cert-dept">IT Department</strong>
+              </div>
+              <div class="item">
+                <span>Designation &amp; Grade</span>
+                <strong id="cert-grade">G3 &bull; Lead Engineer</strong>
+              </div>
+            </div>
+
+            <table class="slip-breakdown-table">
+              <thead>
+                <tr>
+                  <th>Component Description</th>
+                  <th style="text-align: right;">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Basic Pay</td>
+                  <td class="mono" style="text-align: right;" id="cert-basic">₹ 65,000</td>
+                </tr>
+                <tr>
+                  <td>Allowances (HRA + Special)</td>
+                  <td class="mono" style="text-align: right;" id="cert-allow">₹ 14,000</td>
+                </tr>
+                <tr>
+                  <td style="color: #EF4444;">Standard Deductions (PF, Tax)</td>
+                  <td class="mono" style="text-align: right; color: #EF4444;" id="cert-deduct">- ₹ 5,500</td>
+                </tr>
+                <tr>
+                  <td style="color: #EF4444;">Unpaid Leave Penalty Deduction</td>
+                  <td class="mono" style="text-align: right; color: #EF4444;" id="cert-leave-cut">- ₹ 0</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="slip-net-banner">
+              <span>Net Payable Disbursed Salary</span>
+              <strong class="mono" id="cert-net">₹ 73,500</strong>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:36px; padding-top:16px; border-top:1px solid #E5E7EB; font-size:11px; color:#6B7280;">
+              <div>
+                Verified by: <strong>Varna V (Admin)</strong><br>
+                Group 4 &bull; DBMS Project
+              </div>
+              <div style="text-align:right;">
+                Authorized Stamp &bull; CEV Payroll<br>
+                Computer Generated Record
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('payslipModal')">Close</button>
+        <button class="btn-primary" onclick="window.print()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+          Print Official Certificate
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: EXPORT REPORT MODAL
+       ======================================================================== -->
+  <div class="modal-backdrop" id="exportModal">
+    <div class="modal-window" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>Export System Reports</h3>
+        <button class="modal-close-btn" onclick="closeModal('exportModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Choose your export format for the complete DBMS Payroll dataset.</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button class="btn-secondary" style="justify-content: flex-start; padding: 14px;" onclick="exportData('csv')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--emerald);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div>
+              <strong style="display:block; font-size:13px;">Export as CSV Spreadsheet</strong>
+              <span style="font-size:11.5px; color:var(--text-muted);">Compatible with Excel, Google Sheets</span>
+            </div>
+          </button>
+          <button class="btn-secondary" style="justify-content: flex-start; padding: 14px;" onclick="exportData('json')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <div>
+              <strong style="display:block; font-size:13px;">Export as JSON Database</strong>
+              <span style="font-size:11.5px; color:var(--text-muted);">Raw schema records for DBMS validation</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('exportModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications container -->
+  <!-- ========================================================================
+       MODAL: LOGIN MODAL (ADMIN & USER ACCESS)
+       ======================================================================== -->
+  <div class="login-backdrop" id="loginModal">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo-box">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <h2>Payroll Register Login</h2>
+        <p>College of Engineering Vadakara (CEV) &bull; DBMS Group 4</p>
+      </div>
+
+      <form class="login-form" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Username, Work Email, or Employee ID</label>
+          <input type="text" id="loginUsername" class="form-control" placeholder="e.g. EMP002, fathima, or user" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="user123 (Employee) / admin123 (Admin)" required>
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+            Default password: <code>user123</code> (Employees) / <code>admin123</code> (Admin)
+          </span>
+        </div>
+        <div id="loginErrorMsg" style="display:none; color:var(--rose); font-size:12px; font-weight:600; text-align:center;"></div>
+        <button type="submit" class="btn-login-submit" id="loginSubmitBtn">
+          <span>Sign In to Dashboard</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <div class="demo-accounts-panel">
+        <div class="demo-accounts-title">Quick Demo Logins (Click to autofill)</div>
+        <div class="demo-buttons-grid">
+          <div class="demo-user-btn" onclick="quickFillLogin('admin', 'admin123')">
+            <strong>🛡️ Admin (Varna V)</strong>
+            <span>Full HR &amp; DBMS Control</span>
+          </div>
+          <div class="demo-user-btn" onclick="quickFillLogin('user', 'user123')">
+            <strong>👤 Employee (Raneem)</strong>
+            <span>Staff Self-Service Portal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Modular Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
