@@ -16,7 +16,12 @@ from backend.database import (
     init_db,
     reset_db,
     run_payroll_calculation,
-    authenticate_user
+    generate_monthly_payroll,
+    authenticate_user,
+    get_monthly_payroll_summary,
+    get_department_salary_costs,
+    get_salary_audit_logs,
+    update_salary_grade
 )
 from backend.schemas import (
     LoginRequest,
@@ -24,6 +29,7 @@ from backend.schemas import (
     EmployeeUpdate,
     DepartmentCreate,
     GradeCreate,
+    SalaryGradeUpdate,
     AttendanceCreate,
     PayrollRunRequest
 )
@@ -371,6 +377,23 @@ def delete_grade(grade_id: str):
     conn.close()
     return {"message": f"Salary grade {grade_id} deleted"}
 
+@app.put("/api/grades/{grade_id}")
+def edit_grade(grade_id: str, payload: SalaryGradeUpdate):
+    """Updates salary grade and triggers the audit log trigger."""
+    try:
+        result = update_salary_grade(
+            grade_id=grade_id,
+            basic_pay=payload.basic_pay,
+            allowances=payload.allowances,
+            deductions=payload.deductions,
+            changed_by=payload.changed_by or "ADMIN_USER"
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # -----------------------------------------------------------------------------
 # ATTENDANCE CRUD
 # -----------------------------------------------------------------------------
@@ -450,10 +473,57 @@ def list_payslips(emp_id: Optional[str] = None):
 
 @app.post("/api/payroll/run")
 def execute_payroll_run(payload: PayrollRunRequest):
-    conn = get_connection()
-    count = run_payroll_calculation(conn, payload.month)
-    conn.close()
-    return {"message": f"Payroll successfully generated for {payload.month}", "slips_generated": count}
+    try:
+        count = generate_monthly_payroll(month=payload.month, year=payload.year)
+        return {"message": f"Payroll successfully generated for {payload.month}", "slips_generated": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# -----------------------------------------------------------------------------
+# ADVANCED DBMS FEATURES: VIEWS, PROCEDURES & AUDIT LOGS
+# -----------------------------------------------------------------------------
+@app.get("/api/views/monthly-payroll-summary")
+def api_monthly_payroll_summary(month: Optional[str] = None, dept_id: Optional[str] = None):
+    """Fetches records from SQL VIEW v_monthly_payroll_summary using parameterized query."""
+    try:
+        records = get_monthly_payroll_summary(month=month, dept_id=dept_id)
+        return {"status": "success", "count": len(records), "data": records}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/views/department-salary-cost")
+def api_department_salary_cost(month: Optional[str] = None):
+    """Fetches records from SQL VIEW v_department_salary_cost using parameterized query."""
+    try:
+        records = get_department_salary_costs(month=month)
+        return {"status": "success", "count": len(records), "data": records}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/audit/salary-changes")
+def api_salary_audit_logs(grade_id: Optional[str] = None, limit: int = 50):
+    """Fetches audit logs populated by the SQLite salary change trigger."""
+    try:
+        logs = get_salary_audit_logs(grade_id=grade_id, limit=limit)
+        return {"status": "success", "count": len(logs), "data": logs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/payroll/generate")
+def api_generate_monthly_payroll(payload: PayrollRunRequest):
+    """
+    Stored Procedure equivalent: Executes atomic, transaction-safe
+    payroll generation for all active employees. Rolls back on error.
+    """
+    try:
+        count = generate_monthly_payroll(month=payload.month, year=payload.year)
+        return {
+            "status": "success",
+            "message": f"Transaction committed: Generated {count} payslips for {payload.month}",
+            "records_generated": count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/reset")
 def reset_database():

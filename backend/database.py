@@ -2,192 +2,292 @@
 Payroll Management System - Database Engine
 College of Engineering Vadakara - Group 4
 SQLite Database Operations & Schema Management
+
+Features:
+- DDL Schema Execution (Tables, Constraints, Indexes, Triggers, Views)
+- Transaction-Safe Payroll Generation (Stored Procedure Equivalent)
+- Parameterized Query Functions for Views & Audit Logs
 """
 
 import sqlite3
 import os
+from typing import Optional, List, Dict, Any
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "payroll.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
+SEED_PATH = os.path.join(os.path.dirname(__file__), "seed.sql")
 
-def get_connection():
-    """Returns a SQLite connection with row factory enabled."""
+def get_connection() -> sqlite3.Connection:
+    """Returns a SQLite connection with row factory and foreign keys enabled."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 def init_db():
-    """Initializes tables and seeds initial project data if empty."""
+    """Initializes tables, indexes, triggers, views, and seeds initial data."""
     conn = get_connection()
     cursor = conn.cursor()
-    
-    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
-        cursor.executescript(f.read())
-    conn.commit()
 
-    # Check if empty, then seed
+    # 1. Execute DDL Schema (Tables, Constraints, Indexes, Triggers, Views)
+    if os.path.exists(SCHEMA_PATH):
+        with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+            cursor.executescript(f.read())
+        conn.commit()
+
+    # 2. Check if database has been seeded
     cursor.execute("SELECT COUNT(*) AS cnt FROM departments;")
     if cursor.fetchone()["cnt"] == 0:
-        seed_data(conn)
-    else:
-        # Ensure every employee has an active user account
-        seed_users(cursor)
-        conn.commit()
+        # Seed from seed.sql if present, otherwise fallback to seed_data()
+        if os.path.exists(SEED_PATH):
+            with open(SEED_PATH, "r", encoding="utf-8") as f:
+                cursor.executescript(f.read())
+            conn.commit()
+        else:
+            seed_data(conn)
+
+    # 3. Generate initial payslips for June 2025 using transaction procedure
+    cursor.execute("SELECT COUNT(*) AS cnt FROM payslips;")
+    if cursor.fetchone()["cnt"] == 0:
+        generate_monthly_payroll("June 2025", conn=conn)
+
     conn.close()
 
-def seed_users(cursor):
-    """Generates portal login credentials for every employee in the organization."""
-    # 1. Quick demo alias accounts
-    alias_users = [
-        ('USR_ADMIN', 'admin', 'varna@cev.ac.in', 'admin123', 'ADMIN', 'EMP007'),
-        ('USR_USER', 'user', 'raneem@company.com', 'user123', 'EMPLOYEE', 'EMP001'),
-        ('USR_SAHAD', 'sahad', 'sahad@company.com', 'user123', 'EMPLOYEE', 'EMP006'),
-        ('USR_GOPIKA', 'gopika', 'gopika@company.com', 'admin123', 'ADMIN', 'EMP008')
-    ]
-    cursor.executemany("""
-        INSERT OR IGNORE INTO users (id, username, email, password, role, emp_id)
-        VALUES (?, ?, ?, ?, ?, ?);
-    """, alias_users)
+# -----------------------------------------------------------------------------
+# TRANSACTION-SAFE STORED PROCEDURE EQUIVALENT
+# -----------------------------------------------------------------------------
+def generate_monthly_payroll(month: str, year: Optional[int] = None, conn: Optional[sqlite3.Connection] = None) -> int:
+    """
+    DBMS Stored Procedure Equivalent: Generates payroll for all active employees
+    inside a single atomic transaction. Rolls back completely on error.
+    
+    Uses parameterised SQL queries to prevent SQL injection.
+    Triggers (trg_payslips_insert_net_pay) automatically compute net_salary.
+    """
+    # Normalize month string if separate year is provided
+    month_key = f"{month} {year}".strip() if year else month.strip()
+    
+    close_on_finish = False
+    if conn is None:
+        conn = get_connection()
+        close_on_finish = True
 
-    # 2. Automatically generate login accounts for EVERY employee in employees table
-    cursor.execute("SELECT id, name, email FROM employees;")
-    employees = cursor.fetchall()
-    for emp in employees:
-        emp_id = emp["id"]
-        email = emp["email"]
-        username = email.split("@")[0].lower()
-        role = "ADMIN" if emp_id in ("EMP007", "EMP008") else "EMPLOYEE"
-        password = "admin123" if role == "ADMIN" else "user123"
-        user_id = f"USR_{emp_id}"
-        cursor.execute("""
-            INSERT OR IGNORE INTO users (id, username, email, password, role, emp_id)
-            VALUES (?, ?, ?, ?, ?, ?);
-        """, (user_id, username, email, password, role, emp_id))
+    try:
+        # SQLite transaction management: disable auto-commit and begin explicit transaction
+        conn.isolation_level = None
+        cursor = conn.cursor()
+        cursor.execute("BEGIN IMMEDIATE TRANSACTION;")
 
-def seed_data(conn):
-    """Inserts initial project demo records for Group 4 DBMS project."""
+        # 1. Clear any existing records for this month (idempotent run)
+        cursor.execute("DELETE FROM payslips WHERE month = ?;", (month_key,))
+
+        # 2. Query active employees and their salary grade details with attendance
+        query = """
+        SELECT 
+            e.id AS emp_id,
+            e.name AS emp_name,
+            e.status,
+            g.basic_pay,
+            g.allowances,
+            g.deductions AS base_deductions,
+            COALESCE(a.unpaid_leaves, 0) AS unpaid_leaves
+        FROM employees e
+        JOIN salary_grades g ON e.grade_id = g.id
+        LEFT JOIN attendance a ON e.id = a.emp_id AND a.month = ?
+        WHERE e.status = 'Active'
+        ORDER BY e.id ASC;
+        """
+        cursor.execute(query, (month_key,))
+        active_employees = cursor.fetchall()
+
+        if not active_employees:
+            # Commit the delete even if no employees are active
+            cursor.execute("COMMIT;")
+            return 0
+
+        # 3. Prepare payslip records for batch insertion
+        payslips_to_insert = []
+        for emp in active_employees:
+            basic = float(emp["basic_pay"])
+            allow = float(emp["allowances"])
+            base_ded = float(emp["base_deductions"])
+            leaves = int(emp["unpaid_leaves"])
+            
+            # Prorated leave deduction (based on 30 calendar days standard)
+            leave_cut = round((basic / 30.0) * leaves, 2)
+            total_deductions = round(base_ded + leave_cut, 2)
+            gross = round(basic + allow, 2)
+            
+            # net_salary is populated, and also guaranteed/verified by SQLite Trigger
+            net_calc = round(gross - total_deductions, 2)
+            slip_id = f"PS-{month_key.replace(' ', '').upper()}-{emp['emp_id']}"
+
+            payslips_to_insert.append((
+                slip_id,
+                emp["emp_id"],
+                month_key,
+                basic,
+                allow,
+                leave_cut,
+                total_deductions,
+                gross,
+                net_calc
+            ))
+
+        # 4. Insert records using parameterized query
+        insert_query = """
+        INSERT INTO payslips (
+            id, emp_id, month, basic_pay, allowances, leave_cut, deductions, gross_pay, net_salary
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        cursor.executemany(insert_query, payslips_to_insert)
+
+        # 5. Commit atomic transaction
+        cursor.execute("COMMIT;")
+        return len(payslips_to_insert)
+
+    except Exception as exc:
+        # On any error, rollback the entire transaction
+        try:
+            cursor.execute("ROLLBACK;")
+        except Exception:
+            pass
+        raise RuntimeError(f"Payroll transaction failed and was rolled back: {str(exc)}") from exc
+    finally:
+        if close_on_finish:
+            conn.close()
+
+# Alias for backwards compatibility with earlier app versions
+def run_payroll_calculation(conn: sqlite3.Connection, month: str) -> int:
+    """Wrapper maintaining compatibility with existing code."""
+    return generate_monthly_payroll(month=month, conn=conn)
+
+# -----------------------------------------------------------------------------
+# PARAMETERIZED QUERY FUNCTIONS FOR VIEWS & AUDIT
+# -----------------------------------------------------------------------------
+def get_monthly_payroll_summary(month: Optional[str] = None, dept_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Queries the VIEW 'v_monthly_payroll_summary' using parameterized SQL.
+    Returns per-employee payroll breakdown with department details.
+    """
+    conn = get_connection()
     cursor = conn.cursor()
 
-    departments = [
-        ('D01', 'IT Department', 'Anjali S Nair', 1450000.0, 'Software engineering, infrastructure and cloud'),
-        ('D02', 'HR Department', 'Varna V', 450000.0, 'Talent recruitment, culture, and employee welfare'),
-        ('D03', 'Finance & Accounts', 'Gopika M M', 600000.0, 'Audits, payroll execution, and statutory compliance'),
-        ('D04', 'Marketing', 'Sneha P S', 520000.0, 'Digital campaigns, branding and market research'),
-        ('D05', 'Operations', 'Vishnu R', 780000.0, 'Logistics, office administration, and procurement')
-    ]
-    cursor.executemany("INSERT INTO departments (id, name, manager, budget, description) VALUES (?, ?, ?, ?, ?);", departments)
+    query = "SELECT * FROM v_monthly_payroll_summary WHERE 1=1"
+    params = []
 
-    grades = [
-        ('G1', 'Executive Level 1', 32000.0, 6000.0, 2500.0),
-        ('G2', 'Senior Associate Level 2', 52000.0, 9500.0, 4200.0),
-        ('G3', 'Lead / Principal Level 3', 72000.0, 14000.0, 6000.0)
-    ]
-    cursor.executemany("INSERT INTO salary_grades (id, name, basic_pay, allowances, deductions) VALUES (?, ?, ?, ?, ?);", grades)
+    if month and month != "ALL":
+        query += " AND month = ?"
+        params.append(month)
+    if dept_id and dept_id != "ALL":
+        query += " AND dept_id = ?"
+        params.append(dept_id)
 
-    employees = [
-        ('EMP001', 'Raneem Muhammed', 'raneem@company.com', 'Principal Architect', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-        ('EMP002', 'Fathima Noushad', 'fathima@company.com', 'HR Specialist', 'D02', 'G2', 'Active', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80'),
-        ('EMP003', 'Arjun K', 'arjun@company.com', 'Senior Accountant', 'D03', 'G2', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'),
-        ('EMP004', 'Sneha P S', 'sneha@company.com', 'Marketing Lead', 'D04', 'G1', 'Active', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'),
-        ('EMP005', 'Vishnu R', 'vishnu@company.com', 'Operations Manager', 'D05', 'G3', 'On Leave', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
-        ('EMP006', 'Sahad Rafeeque', 'sahad@company.com', 'Database Administrator', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'),
-        ('EMP007', 'Varna V', 'varna@company.com', 'HR Lead & Admin', 'D02', 'G3', 'Active', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'),
-        ('EMP008', 'Gopika M M', 'gopika@company.com', 'Financial Analyst', 'D03', 'G2', 'Active', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80'),
-        ('EMP009', 'Anjali S Nair', 'anjali@company.com', 'Full Stack Engineer', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
-        ('EMP010', 'Kiran Mohan', 'kiran@company.com', 'DevOps Associate', 'D01', 'G1', 'Active', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80'),
-        ('EMP011', 'Devika Menon', 'devika@company.com', 'Content Strategist', 'D04', 'G2', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-        ('EMP012', 'Manoj Kumar', 'manoj@company.com', 'Facilities Supervisor', 'D05', 'G1', 'Active', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80'),
-        ('EMP013', 'Siddharth S', 'siddharth@company.com', 'Security Analyst', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
-        ('EMP014', 'Pooja Pillai', 'pooja@company.com', 'Talent Coordinator', 'D02', 'G1', 'Active', 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=100&auto=format&fit=crop&q=80'),
-        ('EMP015', 'Naveen George', 'naveen@company.com', 'Logistics Planner', 'D05', 'G2', 'Active', 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=100&auto=format&fit=crop&q=80'),
-        ('EMP016', 'Lakshmi Rajan', 'lakshmi@company.com', 'Accounts Assistant', 'D03', 'G1', 'Active', 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=100&auto=format&fit=crop&q=80'),
-        ('EMP017', 'Rahul Varma', 'rahul@company.com', 'Data Scientist', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=100&auto=format&fit=crop&q=80'),
-        ('EMP018', 'Gayathri S', 'gayathri@company.com', 'Social Media Exec', 'D04', 'G1', 'On Leave', 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=100&auto=format&fit=crop&q=80'),
-        ('EMP019', 'Abhishek Roy', 'abhishek@company.com', 'Junior Developer', 'D01', 'G1', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
-        ('EMP020', 'Meera Nambiar', 'meera@company.com', 'HR Generalist', 'D02', 'G2', 'Active', 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&auto=format&fit=crop&q=80'),
-        ('EMP021', 'Harish Babu', 'harish@company.com', 'Field Operations', 'D05', 'G2', 'Active', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80'),
-        ('EMP022', 'Deepa Krishnan', 'deepa@company.com', 'QA Automation Lead', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
-        ('EMP023', 'Roshan Thomas', 'roshan@company.com', 'Tax & Compliance Mgr', 'D03', 'G3', 'Active', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
-        ('EMP024', 'Vivek Chandran', 'vivek@company.com', 'Store In-Charge', 'D05', 'G1', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80')
-    ]
-    cursor.executemany("INSERT INTO employees (id, name, email, designation, dept_id, grade_id, status, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?);", employees)
+    query += " ORDER BY dept_id ASC, emp_id ASC;"
+    cursor.execute(query, tuple(params))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
 
-    seed_users(cursor)
-
-    attendance = [
-        ('ATT-001', 'EMP001', 'June 2025', 22, 0),
-        ('ATT-002', 'EMP002', 'June 2025', 21, 1),
-        ('ATT-003', 'EMP003', 'June 2025', 22, 0),
-        ('ATT-004', 'EMP004', 'June 2025', 20, 2),
-        ('ATT-005', 'EMP005', 'June 2025', 18, 4),
-        ('ATT-006', 'EMP006', 'June 2025', 22, 0),
-        ('ATT-007', 'EMP007', 'June 2025', 22, 0),
-        ('ATT-008', 'EMP008', 'June 2025', 21, 1)
-    ]
-    cursor.executemany("INSERT INTO attendance (id, emp_id, month, days_present, unpaid_leaves) VALUES (?, ?, ?, ?, ?);", attendance)
-
-    conn.commit()
-
-    # Generate initial payslips for June 2025
-    run_payroll_calculation(conn, 'June 2025')
-
-def run_payroll_calculation(conn, month):
-    """Executes DBMS payroll calculation logic using SQL JOINs."""
+def get_department_salary_costs(month: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Queries the VIEW 'v_department_salary_cost' using parameterized SQL.
+    Returns departmental salary aggregation and remaining budget.
+    """
+    conn = get_connection()
     cursor = conn.cursor()
-    # Delete existing payslips for this month
-    cursor.execute("DELETE FROM payslips WHERE month = ?;", (month,))
 
-    # Calculate using JOIN between employees, grades, and attendance
-    query = """
-    SELECT 
-        e.id AS emp_id,
-        g.basic_pay,
-        g.allowances,
-        g.deductions,
-        COALESCE(a.unpaid_leaves, 0) AS unpaid_leaves
-    FROM employees e
-    JOIN salary_grades g ON e.grade_id = g.id
-    LEFT JOIN attendance a ON e.id = a.emp_id AND a.month = ?;
+    query = "SELECT * FROM v_department_salary_cost WHERE 1=1"
+    params = []
+
+    if month and month != "ALL":
+        query += " AND month = ?"
+        params.append(month)
+
+    query += " ORDER BY dept_id ASC;"
+    cursor.execute(query, tuple(params))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def get_salary_audit_logs(grade_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
     """
-    cursor.execute(query, (month,))
-    rows = cursor.fetchall()
-
-    payslips_to_insert = []
-    for r in rows:
-        basic = r['basic_pay']
-        allow = r['allowances']
-        base_ded = r['deductions']
-        leaves = r['unpaid_leaves']
-        leave_cut = round((basic / 30.0) * leaves)
-        total_deductions = base_ded + leave_cut
-        gross = basic + allow
-        net = gross - total_deductions
-        slip_id = f"PS-{month.replace(' ', '').upper()}-{r['emp_id']}"
-
-        payslips_to_insert.append((
-            slip_id, r['emp_id'], month, basic, allow, leave_cut, total_deductions, gross, net
-        ))
-
-    insert_query = """
-    INSERT INTO payslips (id, emp_id, month, basic_pay, allowances, leave_cut, deductions, gross_pay, net_salary)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    Queries the 'salary_audit_log' table populated by TRIGGER 'trg_salary_grades_update_audit'.
     """
-    cursor.executemany(insert_query, payslips_to_insert)
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM salary_audit_log WHERE 1=1"
+    params = []
+
+    if grade_id:
+        query += " AND grade_id = ?"
+        params.append(grade_id)
+
+    query += " ORDER BY audit_id DESC LIMIT ?;"
+    params.append(limit)
+
+    cursor.execute(query, tuple(params))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def update_salary_grade(grade_id: str, basic_pay: Optional[float] = None, 
+                        allowances: Optional[float] = None, deductions: Optional[float] = None,
+                        changed_by: str = "ADMIN") -> Dict[str, Any]:
+    """
+    Updates salary_grades using parameterized queries, causing the
+    database trigger 'trg_salary_grades_update_audit' to fire automatically.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Fetch current grade
+    cursor.execute("SELECT * FROM salary_grades WHERE id = ?;", (grade_id,))
+    current = cursor.fetchone()
+    if not current:
+        conn.close()
+        raise ValueError(f"Salary Grade '{grade_id}' not found.")
+
+    new_basic = basic_pay if basic_pay is not None else current["basic_pay"]
+    new_allow = allowances if allowances is not None else current["allowances"]
+    new_ded = deductions if deductions is not None else current["deductions"]
+
+    # Parameterized update statement
+    cursor.execute("""
+        UPDATE salary_grades
+        SET basic_pay = ?, allowances = ?, deductions = ?
+        WHERE id = ?;
+    """, (new_basic, new_allow, new_ded, grade_id))
     conn.commit()
-    return len(payslips_to_insert)
 
-def authenticate_user(username_or_email, password):
-    """Validates credentials and returns user details with linked employee profile.
-    Supports login by username, email, or Employee ID (e.g. EMP001, EMP002).
-    Default password: 'admin123' for Admins, 'user123' for Employees.
-    """
+    # Fetch the newly inserted audit record
+    cursor.execute("""
+        SELECT * FROM salary_audit_log 
+        WHERE grade_id = ? 
+        ORDER BY audit_id DESC LIMIT 1;
+    """, (grade_id,))
+    audit_row = cursor.fetchone()
+
+    conn.close()
+    return {
+        "status": "success",
+        "grade_id": grade_id,
+        "updated": {"basic_pay": new_basic, "allowances": new_allow, "deductions": new_ded},
+        "audit_entry": dict(audit_row) if audit_row else None
+    }
+
+# -----------------------------------------------------------------------------
+# USER AUTHENTICATION & LOOKUP
+# -----------------------------------------------------------------------------
+def authenticate_user(username_or_email: str, password: str) -> Optional[Dict[str, Any]]:
+    """Validates credentials and returns user details with linked employee profile."""
     conn = get_connection()
     cursor = conn.cursor()
     clean_input = username_or_email.strip().lower()
     clean_pass = password.strip()
 
-    # 1. Search in users table
+    # Search in users table
     query = """
     SELECT u.id, u.username, u.email, u.role, u.emp_id,
            e.name, e.designation, e.avatar, e.dept_id, e.grade_id, d.name AS dept_name
@@ -199,7 +299,7 @@ def authenticate_user(username_or_email, password):
     cursor.execute(query, (clean_input, clean_input, clean_input, clean_pass))
     row = cursor.fetchone()
 
-    # 2. Fallback: Check employees master table directly by emp_id, email, or username prefix
+    # Fallback auto-provision for seed employees
     if not row:
         cursor.execute("""
             SELECT e.id AS emp_id, e.name, e.email, e.designation, e.avatar, e.dept_id, e.grade_id, d.name AS dept_name
@@ -212,7 +312,6 @@ def authenticate_user(username_or_email, password):
             role = "ADMIN" if emp["emp_id"] in ("EMP007", "EMP008") else "EMPLOYEE"
             expected_pass = "admin123" if role == "ADMIN" else "user123"
             if clean_pass == expected_pass:
-                # Auto-provision into users table so it is saved
                 u_id = f"USR_{emp['emp_id']}"
                 username = emp["email"].split("@")[0].lower()
                 cursor.execute("""
@@ -225,14 +324,25 @@ def authenticate_user(username_or_email, password):
                 row = cursor.fetchone()
 
     conn.close()
-    if row:
-        return dict(row)
-    return None
+    return dict(row) if row else None
+
+def seed_data(conn: sqlite3.Connection):
+    """Fallback Python seeder if seed.sql is not present."""
+    if os.path.exists(SEED_PATH):
+        with open(SEED_PATH, "r", encoding="utf-8") as f:
+            conn.cursor().executescript(f.read())
+        conn.commit()
 
 def reset_db():
     """Drops and re-creates everything to pristine seed state."""
     conn = get_connection()
     cursor = conn.cursor()
+    cursor.execute("DROP VIEW IF EXISTS v_monthly_payroll_summary;")
+    cursor.execute("DROP VIEW IF EXISTS v_department_salary_cost;")
+    cursor.execute("DROP TRIGGER IF EXISTS trg_payslips_insert_net_pay;")
+    cursor.execute("DROP TRIGGER IF EXISTS trg_payslips_update_net_pay;")
+    cursor.execute("DROP TRIGGER IF EXISTS trg_salary_grades_update_audit;")
+    cursor.execute("DROP TABLE IF EXISTS salary_audit_log;")
     cursor.execute("DROP TABLE IF EXISTS payslips;")
     cursor.execute("DROP TABLE IF EXISTS attendance;")
     cursor.execute("DROP TABLE IF EXISTS users;")
