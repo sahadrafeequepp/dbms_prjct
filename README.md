@@ -11,7 +11,7 @@ An enterprise-grade, modern SaaS-styled **Automated Payroll Management System** 
 
 ---
 
-## 💎 Advanced DBMS Features (Viva Ready)
+## 💎 Advanced DBMS Features 
 
 The system incorporates 5 advanced database management concepts:
 
@@ -29,8 +29,6 @@ The system incorporates 5 advanced database management concepts:
 5. **Data Integrity Constraints**:
    - `PRIMARY KEY`, `FOREIGN KEY` (with `ON DELETE RESTRICT` and `CASCADE`), `NOT NULL`, `UNIQUE`, and `CHECK` domain constraints (e.g. `basic_pay > 0`, `days_present BETWEEN 0 AND 31`).
 
-> [!NOTE]
-> For examiner questions, detailed concept breakdowns, and 3 working queries for each feature, see [VIVA_EXPLANATION.md](file:///c:/Users/mohds/Desktop/dbms_prjct/VIVA_EXPLANATION.md).
 
 ---
 
