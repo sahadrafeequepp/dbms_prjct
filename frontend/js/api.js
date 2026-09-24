@@ -2,19 +2,54 @@
  * Payroll Management System - API Client
  * Automatically connects to FastAPI backend if available,
  * otherwise seamlessly falls back to LocalStorage (Offline Mode).
+ * 
+ * Supports Cookie-Based Persistence across sessions and automatic
+ * Bearer fallback for maximum compatibility.
  */
 
 const API_BASE = window.location.origin.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+
+// -----------------------------------------------------------------------------
+// COOKIE PERSISTENCE HELPERS
+// -----------------------------------------------------------------------------
+const CookieAuth = {
+  get(name = 'payroll_session') {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+  },
+  set(name = 'payroll_session', value = '', days = 30) {
+    let expires = "";
+    if (days) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + encodeURIComponent(value || "") + expires + "; path=/; SameSite=Lax";
+  },
+  delete(name = 'payroll_session') {
+    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+  }
+};
 
 const API = {
   isBackendConnected: false,
 
   async init() {
     try {
-      const res = await fetch(`${API_BASE}/api/stats`, { method: 'GET', signal: AbortSignal.timeout(1500) });
+      const res = await fetch(`${API_BASE}/api/stats`, { 
+        method: 'GET', 
+        credentials: 'include',
+        signal: AbortSignal.timeout(1500) 
+      });
       if (res.ok) {
         this.isBackendConnected = true;
-        console.log('✅ Connected to FastAPI SQLite Backend');
+        console.log('✅ Connected to FastAPI SQLite Backend (Cookie Sessions Enabled)');
         return true;
       }
     } catch (e) {
@@ -25,26 +60,105 @@ const API = {
     return false;
   },
 
+  async request(endpoint, options = {}) {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+    const token = CookieAuth.get('payroll_session');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    };
+
+    const config = {
+      credentials: 'include',
+      ...options,
+      headers
+    };
+
+    const res = await fetch(url, config);
+    if (res.status === 401) {
+      if (typeof window.handleUnauthorizedAccess === 'function') {
+        window.handleUnauthorizedAccess();
+      }
+      const err = await res.json().catch(() => ({ detail: 'Authentication required. Please sign in.' }));
+      throw new Error(err.detail || 'Authentication required');
+    }
+    return res;
+  },
+
   async login(username, password) {
     if (this.isBackendConnected) {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password })
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Login failed');
       }
-      return await res.json();
+      const data = await res.json();
+      if (data.token) {
+        CookieAuth.set('payroll_session', data.token, 30);
+      }
+      return data;
     }
-    return LocalDB.login(username, password);
+    const localRes = LocalDB.login(username, password);
+    CookieAuth.set('payroll_session', JSON.stringify(localRes.user), 30);
+    return localRes;
+  },
+
+  async getMe() {
+    if (this.isBackendConnected) {
+      try {
+        const res = await this.request('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            return data.user;
+          }
+        }
+      } catch (e) { }
+    }
+    // Check local cookie persistence fallback
+    const saved = CookieAuth.get('payroll_session');
+    if (saved) {
+      try {
+        if (saved.startsWith('{')) return JSON.parse(saved);
+        if (saved.includes('.')) {
+          const payloadPart = saved.split('.')[0];
+          let normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+          while (normalized.length % 4) normalized += '=';
+          const decoded = atob(normalized);
+          const parsed = JSON.parse(decoded);
+          if (parsed && (!parsed.exp || parsed.exp * 1000 > Date.now())) {
+            return parsed;
+          }
+        }
+      } catch (e) { }
+    }
+    return null;
+  },
+
+  async logout() {
+    if (this.isBackendConnected) {
+      try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+      } catch (e) { }
+    }
+    CookieAuth.delete('payroll_session');
+    localStorage.removeItem('payroll_auth_user');
+    return { status: 'success' };
   },
 
   async getStats(empId = null) {
     if (this.isBackendConnected) {
-      const url = empId ? `${API_BASE}/api/stats?emp_id=${empId}` : `${API_BASE}/api/stats`;
-      const res = await fetch(url);
+      const url = empId ? `/api/stats?emp_id=${empId}` : `/api/stats`;
+      const res = await this.request(url);
       return await res.json();
     }
     // Fallback to local DB
@@ -53,10 +167,10 @@ const API = {
 
   async getEmployees(deptId = 'ALL', empId = null) {
     if (this.isBackendConnected) {
-      let url = `${API_BASE}/api/employees?`;
+      let url = `/api/employees?`;
       if (deptId && deptId !== 'ALL') url += `dept_id=${deptId}&`;
       if (empId) url += `emp_id=${empId}`;
-      const res = await fetch(url);
+      const res = await this.request(url);
       return await res.json();
     }
     return LocalDB.getEmployees(deptId, empId);
@@ -64,9 +178,8 @@ const API = {
 
   async createEmployee(data) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/employees`, {
+      const res = await this.request('/api/employees', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       return await res.json();
@@ -76,9 +189,8 @@ const API = {
 
   async updateEmployee(id, data) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/employees/${id}`, {
+      const res = await this.request(`/api/employees/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       return await res.json();
@@ -88,7 +200,7 @@ const API = {
 
   async deleteEmployee(id) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/employees/${id}`, { method: 'DELETE' });
+      const res = await this.request(`/api/employees/${id}`, { method: 'DELETE' });
       return await res.json();
     }
     return LocalDB.deleteEmployee(id);
@@ -96,7 +208,7 @@ const API = {
 
   async getDepartments() {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/departments`);
+      const res = await this.request('/api/departments');
       return await res.json();
     }
     return LocalDB.getDepartments();
@@ -104,9 +216,8 @@ const API = {
 
   async createDepartment(data) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/departments`, {
+      const res = await this.request('/api/departments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       return await res.json();
@@ -116,7 +227,7 @@ const API = {
 
   async deleteDepartment(id) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/departments/${id}`, { method: 'DELETE' });
+      const res = await this.request(`/api/departments/${id}`, { method: 'DELETE' });
       return await res.json();
     }
     return LocalDB.deleteDepartment(id);
@@ -124,7 +235,7 @@ const API = {
 
   async getGrades() {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/grades`);
+      const res = await this.request('/api/grades');
       return await res.json();
     }
     return LocalDB.getGrades();
@@ -132,9 +243,8 @@ const API = {
 
   async createGrade(data) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/grades`, {
+      const res = await this.request('/api/grades', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       return await res.json();
@@ -144,7 +254,7 @@ const API = {
 
   async deleteGrade(id) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/grades/${id}`, { method: 'DELETE' });
+      const res = await this.request(`/api/grades/${id}`, { method: 'DELETE' });
       return await res.json();
     }
     return LocalDB.deleteGrade(id);
@@ -152,9 +262,9 @@ const API = {
 
   async getAttendance(month = 'June 2025', empId = null) {
     if (this.isBackendConnected) {
-      let url = `${API_BASE}/api/attendance?month=${encodeURIComponent(month)}`;
+      let url = `/api/attendance?month=${encodeURIComponent(month)}`;
       if (empId) url += `&emp_id=${empId}`;
-      const res = await fetch(url);
+      const res = await this.request(url);
       return await res.json();
     }
     return LocalDB.getAttendance(month, empId);
@@ -162,9 +272,8 @@ const API = {
 
   async createAttendance(data) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/attendance`, {
+      const res = await this.request('/api/attendance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       return await res.json();
@@ -174,7 +283,7 @@ const API = {
 
   async deleteAttendance(id) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/attendance/${id}`, { method: 'DELETE' });
+      const res = await this.request(`/api/attendance/${id}`, { method: 'DELETE' });
       return await res.json();
     }
     return LocalDB.deleteAttendance(id);
@@ -182,8 +291,8 @@ const API = {
 
   async getPayslips(empId = null) {
     if (this.isBackendConnected) {
-      const url = empId ? `${API_BASE}/api/payslips?emp_id=${empId}` : `${API_BASE}/api/payslips`;
-      const res = await fetch(url);
+      const url = empId ? `/api/payslips?emp_id=${empId}` : `/api/payslips`;
+      const res = await this.request(url);
       return await res.json();
     }
     return LocalDB.getPayslips(empId);
@@ -191,9 +300,8 @@ const API = {
 
   async runPayroll(month) {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/payroll/run`, {
+      const res = await this.request('/api/payroll/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ month })
       });
       return await res.json();
@@ -203,7 +311,7 @@ const API = {
 
   async resetDatabase() {
     if (this.isBackendConnected) {
-      const res = await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
+      const res = await this.request('/api/reset', { method: 'POST' });
       return await res.json();
     }
     return LocalDB.reset();

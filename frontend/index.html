@@ -45,7 +45,14 @@
 
     <!-- Navigation Links -->
     <nav class="nav-group">
-      <div class="nav-item active" data-tab="dashboard" onclick="switchNav('dashboard')">
+      <div class="nav-item active" data-tab="landing" onclick="switchNav('landing')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+        <span>Overview</span>
+      </div>
+      <div class="nav-item" data-tab="dashboard" onclick="switchNav('dashboard')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <rect width="7" height="9" x="3" y="3" rx="1" />
           <rect width="7" height="5" x="14" y="3" rx="1" />
@@ -220,8 +227,20 @@
           </div>
         </div>
 
+        <!-- Topbar Guest View: Sign In Button -->
+        <div id="topbarGuestArea" style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn-topbar-signin" onclick="openLoginModal('Sign in to access DBMS management features')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            <span>Sign In</span>
+          </button>
+        </div>
+
         <!-- User Profile Pill -->
-        <div style="position: relative;">
+        <div id="topbarUserArea" style="position: relative; display: none;">
           <div class="user-profile-pill" onclick="toggleDropdown('profileDropdown')">
             <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80"
               alt="Avatar" class="user-avatar" id="topbarAvatar">
@@ -279,9 +298,175 @@
     <main class="content-viewport">
 
       <!-- ====================================================================
+           TAB: PUBLIC LANDING PAGE (DEFAULT VIEW FOR GUESTS)
+           ==================================================================== -->
+      <section id="tab-landing" class="tab-content active">
+        <!-- Hero Section -->
+        <div class="landing-hero-card">
+          <div class="landing-badge-row">
+            <span class="landing-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+              College of Engineering Vadakara (CEV)
+            </span>
+            <span class="landing-badge landing-badge-purple">
+              DBMS Project &bull; Group 4
+            </span>
+            <span class="landing-badge landing-badge-emerald">
+              <span class="pulse-dot"></span> System Live &amp; Online
+            </span>
+          </div>
+
+          <h1 class="landing-title">Automated Payroll &amp; HR Management System</h1>
+          <p class="landing-subtitle">
+            An enterprise-grade relational database management application built with FastAPI and SQLite.
+            Engineered with strict ACID transaction guarantees, automated salary calculation procedures, 
+            instant trigger audit logs, and granular role-based access control.
+          </p>
+
+          <div class="landing-cta-row">
+            <button class="btn-landing-primary" onclick="openLoginModal('Sign in to explore all DBMS features')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span>Sign In to Portal</span>
+            </button>
+            <button class="btn-landing-demo" onclick="quickFillLogin('admin', 'admin123')">
+              <span>🛡️ One-Click Demo (Admin)</span>
+            </button>
+            <button class="btn-landing-demo" onclick="quickFillLogin('user', 'user123')">
+              <span>👤 One-Click Demo (Employee)</span>
+            </button>
+          </div>
+
+          <!-- Quick Metrics Banner -->
+          <div class="landing-metrics-bar">
+            <div class="landing-metric-item">
+              <div class="metric-num" id="landing-count-emp">24</div>
+              <div class="metric-text">Staff Members</div>
+            </div>
+            <div class="landing-metric-divider"></div>
+            <div class="landing-metric-item">
+              <div class="metric-num" id="landing-count-dept">5</div>
+              <div class="metric-text">Departments</div>
+            </div>
+            <div class="landing-metric-divider"></div>
+            <div class="landing-metric-item">
+              <div class="metric-num">ACID</div>
+              <div class="metric-text">Transaction Engine</div>
+            </div>
+            <div class="landing-metric-divider"></div>
+            <div class="landing-metric-item">
+              <div class="metric-num">30 Days</div>
+              <div class="metric-text">Cookie Session Memory</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Architecture & DBMS Highlights -->
+        <div style="margin: 28px 0 14px 0; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <h3 style="font-size:18px; font-weight:800; color:var(--text-main); letter-spacing:-0.2px;">Key Architectural Features</h3>
+            <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Core database components and computational mechanisms powering the application</p>
+          </div>
+          <span style="font-size:12px; color:var(--primary); font-weight:700;">SQLite 3 &bull; FastAPI REST</span>
+        </div>
+
+        <div class="landing-features-grid">
+          <div class="card landing-feature-card" onclick="requireAuth('view Employees module')">
+            <div class="feature-icon-box" style="background:rgba(109, 93, 252, 0.12); color:var(--primary);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <h4>Role-Based Access Control (RBAC)</h4>
+            <p>Enforces strict separation between HR administrative operations (pay scales, audits, approvals) and employee self-service (payslips, attendance records).</p>
+            <div class="feature-action-tag">Click to access &rarr;</div>
+          </div>
+
+          <div class="card landing-feature-card" onclick="requireAuth('process monthly payroll')">
+            <div class="feature-icon-box" style="background:rgba(16, 185, 129, 0.12); color:var(--emerald);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
+              </svg>
+            </div>
+            <h4>ACID Transaction Payroll Run</h4>
+            <p>Executes complete multi-employee payroll processing in a single atomic transaction. Automatically rolls back state upon any calculation exception.</p>
+            <div class="feature-action-tag">Click to access &rarr;</div>
+          </div>
+
+          <div class="card landing-feature-card" onclick="requireAuth('view audit logs')">
+            <div class="feature-icon-box" style="background:rgba(245, 158, 11, 0.12); color:var(--amber);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </div>
+            <h4>SQLite Audit Triggers</h4>
+            <p>Database-level triggers monitor every modification to salary grades and generate immutable historical logs with old values, new values, and timestamps.</p>
+            <div class="feature-action-tag">Click to access &rarr;</div>
+          </div>
+
+          <div class="card landing-feature-card" onclick="requireAuth('view analytical reports')">
+            <div class="feature-icon-box" style="background:rgba(6, 182, 212, 0.12); color:var(--cyan);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="18" x2="18" y1="20" y2="10" />
+                <line x1="12" x2="12" y1="20" y2="4" />
+                <line x1="6" x2="6" y1="20" y2="14" />
+              </svg>
+            </div>
+            <h4>Parameterized Views &amp; Analytics</h4>
+            <p>Pre-compiled SQL views (v_monthly_payroll_summary, v_department_salary_cost) power interactive Chart.js visualizations with instant query execution.</p>
+            <div class="feature-action-tag">Click to access &rarr;</div>
+          </div>
+        </div>
+
+        <!-- Project Team Attribution Card -->
+        <div class="card landing-team-card">
+          <div class="team-card-header">
+            <div>
+              <span class="team-label">Academic Project Development Team</span>
+              <h3 style="font-size:16px; font-weight:800; color:var(--text-main); margin-top:2px;">Group 4 &bull; College of Engineering Vadakara</h3>
+            </div>
+            <div class="team-course-badge">DBMS Course 2024–2025</div>
+          </div>
+          <div class="team-members-grid">
+            <div class="team-member-pill">
+              <div class="member-avatar-initials">SR</div>
+              <div>
+                <strong>Sahad Rafeeque P P</strong>
+                <span>Database Architecture &amp; Backend API</span>
+              </div>
+            </div>
+            <div class="team-member-pill">
+              <div class="member-avatar-initials" style="background:linear-gradient(135deg, #10B981 0%, #059669 100%);">VV</div>
+              <div>
+                <strong>Varna V</strong>
+                <span>Frontend Design &amp; UI Architecture</span>
+              </div>
+            </div>
+            <div class="team-member-pill">
+              <div class="member-avatar-initials" style="background:linear-gradient(135deg, #EC4899 0%, #BE185D 100%);">GM</div>
+              <div>
+                <strong>Gopika M M</strong>
+                <span>Schema Design &amp; Analytical Views</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
            TAB: DASHBOARD
            ==================================================================== -->
-      <section id="tab-dashboard" class="tab-content active">
+      <section id="tab-dashboard" class="tab-content">
         <!-- Welcome banner -->
         <div class="welcome-header">
           <div class="welcome-text">
@@ -1188,8 +1373,10 @@
   <!-- ========================================================================
        MODAL: LOGIN MODAL (ADMIN & USER ACCESS)
        ======================================================================== -->
-  <div class="login-backdrop" id="loginModal">
-    <div class="login-card">
+  <div class="login-backdrop" id="loginModal" onclick="if(event.target === this) closeModal('loginModal')">
+    <div class="login-card" style="position: relative;">
+      <button type="button" class="login-close-btn" onclick="closeModal('loginModal')" aria-label="Close modal">&times;</button>
+      
       <div class="login-header">
         <div class="login-logo-box">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -1202,6 +1389,9 @@
         <h2>Payroll Register Login</h2>
         <p>College of Engineering Vadakara (CEV) &bull; DBMS Group 4</p>
       </div>
+
+      <!-- Dynamic context prompt notice when triggered from restricted actions -->
+      <div id="loginPromptNotice" class="login-prompt-notice" style="display:none;"></div>
 
       <form class="login-form" onsubmit="handleLoginSubmit(event)">
         <div class="form-group">
@@ -1240,6 +1430,17 @@
             <span>Staff Self-Service Portal</span>
           </div>
         </div>
+      </div>
+
+      <div class="cookie-persistence-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+          <path d="m9 16 2 2 4-4"/>
+        </svg>
+        <span>Cookie Session Persistence &bull; Auto-login saved across visits</span>
       </div>
     </div>
   </div>

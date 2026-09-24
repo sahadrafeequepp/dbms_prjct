@@ -17,38 +17,130 @@ let currentUser = null;
 // -----------------------------------------------------------------------------
 // INITIALIZATION
 // -----------------------------------------------------------------------------
+let pendingAuthCallback = null;
+
+// -----------------------------------------------------------------------------
+// INITIALIZATION
+// -----------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   await API.init();
-  checkAuth();
-  await loadAndRenderAll();
+  await checkAuth();
 });
+
+// Global 401 Unauthorized Interceptor
+window.handleUnauthorizedAccess = function() {
+  if (currentUser) {
+    showToast('Your session has expired. Please sign in again.');
+    logoutUser();
+  } else {
+    requireAuth('access this DBMS resource');
+  }
+};
 
 // -----------------------------------------------------------------------------
 // AUTHENTICATION & ROLE-BASED ACCESS
 // -----------------------------------------------------------------------------
-function checkAuth() {
+async function checkAuth() {
+  // 1. Try to restore session from persistent cookie via API
+  try {
+    const user = await API.getMe();
+    if (user) {
+      currentUser = user;
+      localStorage.setItem('payroll_auth_user', JSON.stringify(currentUser));
+      applyRoleAccess(currentUser);
+      closeModal('loginModal');
+      await loadAndRenderAll();
+      return true;
+    }
+  } catch (e) {
+    console.warn('Session check error:', e);
+  }
+
+  // 2. Check localStorage fallback (Offline demo mode)
   const savedUser = localStorage.getItem('payroll_auth_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
       applyRoleAccess(currentUser);
       closeModal('loginModal');
+      await loadAndRenderAll();
       return true;
     } catch (e) { }
   }
-  // Default to Admin or show modal
-  openModal('loginModal');
+
+  // 3. Default View: Logged-Out Public Landing Page
+  currentUser = null;
+  applyGuestState();
+  await loadGuestSummary();
   return false;
+}
+
+function applyGuestState() {
+  currentUser = null;
+  document.body.classList.remove('role-admin', 'role-employee');
+  document.body.classList.add('role-guest');
+
+  // Topbar: show "Sign In" button, hide user profile
+  const guestArea = document.getElementById('topbarGuestArea');
+  const userArea = document.getElementById('topbarUserArea');
+  if (guestArea) guestArea.style.display = 'flex';
+  if (userArea) userArea.style.display = 'none';
+
+  // Make Overview (Landing) the active view
+  switchNav('landing');
+}
+
+async function loadGuestSummary() {
+  try {
+    const stats = await API.getStats();
+    if (stats) {
+      const empCountEl = document.getElementById('landing-count-emp');
+      const deptCountEl = document.getElementById('landing-count-dept');
+      if (empCountEl && stats.total_employees) empCountEl.innerText = stats.total_employees;
+      if (deptCountEl && stats.total_departments) deptCountEl.innerText = stats.total_departments;
+    }
+  } catch (e) {
+    // Graceful offline fallback
+  }
+}
+
+function requireAuth(actionName = 'access this feature', callback = null) {
+  if (currentUser) {
+    if (typeof callback === 'function') callback();
+    return true;
+  }
+
+  pendingAuthCallback = callback;
+  openLoginModal(actionName ? `Please sign in to ${actionName}` : 'Sign in to access DBMS management features');
+  return false;
+}
+
+function openLoginModal(noticeText = '') {
+  const promptEl = document.getElementById('loginPromptNotice');
+  if (promptEl) {
+    if (noticeText) {
+      promptEl.innerText = `🔒 ${noticeText}`;
+      promptEl.style.display = 'block';
+    } else {
+      promptEl.style.display = 'none';
+    }
+  }
+  openModal('loginModal');
 }
 
 function applyRoleAccess(user) {
   if (!user) return;
   const isAdmin = user.role === 'ADMIN';
-  document.body.classList.remove('role-admin', 'role-employee');
+  document.body.classList.remove('role-admin', 'role-employee', 'role-guest');
   document.body.classList.add(isAdmin ? 'role-admin' : 'role-employee');
 
-  // Update Topbar
+  // Topbar: hide "Sign In" button, show user profile
+  const guestArea = document.getElementById('topbarGuestArea');
+  const userArea = document.getElementById('topbarUserArea');
+  if (guestArea) guestArea.style.display = 'none';
+  if (userArea) userArea.style.display = 'block';
+
   const nameEl = document.getElementById('topbarUserName');
   const roleBadgeEl = document.getElementById('topbarRoleBadge');
   const avatarEl = document.getElementById('topbarAvatar');
@@ -103,6 +195,19 @@ async function handleLoginSubmit(event) {
     closeModal('loginModal');
     showToast(`Welcome back, ${currentUser.name}! (${currentUser.role} Access)`);
     await loadAndRenderAll();
+
+    // If an action or navigation was pending, execute it now!
+    if (typeof pendingAuthCallback === 'function') {
+      const cb = pendingAuthCallback;
+      pendingAuthCallback = null;
+      cb();
+    } else {
+      // Default transition from landing to dashboard
+      const activeTab = document.querySelector('.tab-content.active');
+      if (!activeTab || activeTab.id === 'tab-landing') {
+        switchNav('dashboard');
+      }
+    }
   } catch (err) {
     if (errorEl) {
       errorEl.innerText = err.message || 'Invalid username or password';
@@ -122,11 +227,12 @@ function quickFillLogin(username, password) {
   handleLoginSubmit();
 }
 
-function logoutUser() {
-  localStorage.removeItem('payroll_auth_user');
+async function logoutUser() {
+  await API.logout();
   currentUser = null;
-  document.body.classList.remove('role-admin', 'role-employee');
-  openModal('loginModal');
+  localStorage.removeItem('payroll_auth_user');
+  applyGuestState();
+  closeAllDropdowns();
   showToast('Signed out successfully.');
 }
 
@@ -182,6 +288,23 @@ function toggleTheme() {
 // NAVIGATION TABS
 // -----------------------------------------------------------------------------
 function switchNav(tabId) {
+  if (tabId !== 'landing' && !currentUser) {
+    const tabNames = {
+      'dashboard': 'Dashboard',
+      'employees': 'Employees Directory',
+      'departments': 'Departments',
+      'grades': 'Salary Grades',
+      'attendance': 'Attendance Records',
+      'payslips': 'Payslips',
+      'payroll-run': 'Payroll Processing',
+      'reports': 'System Reports',
+      'settings': 'Settings'
+    };
+    const name = tabNames[tabId] || 'this section';
+    requireAuth(`view ${name}`, () => switchNav(tabId));
+    return;
+  }
+
   const adminOnlyTabs = ['employees', 'departments', 'grades', 'payroll-run', 'reports', 'settings'];
   if (currentUser && currentUser.role === 'EMPLOYEE' && adminOnlyTabs.includes(tabId)) {
     showToast('Access restricted: Only Admin can view organizational records.');
@@ -198,7 +321,7 @@ function switchNav(tabId) {
   if (targetNavItem) targetNavItem.classList.add('active');
 
   if (tabId === 'dashboard') {
-    setTimeout(() => ChartsManager.render(appData.stats), 50);
+    setTimeout(() => { if (appData.stats) ChartsManager.render(appData.stats); }, 50);
   } else if (tabId === 'attendance') {
     renderAttendanceTable();
   } else if (tabId === 'payslips') {
@@ -679,6 +802,7 @@ function viewCertificate(slipId) {
 }
 
 function openPayslipGeneratorModal() {
+  if (!requireAuth('generate or download payslips', () => openPayslipGeneratorModal())) return;
   if (currentUser && currentUser.role === 'EMPLOYEE' && currentUser.emp_id) {
     const mySlip = appData.payslips.find(s => (s.emp_id || s.empId) === currentUser.emp_id);
     if (mySlip) {
@@ -697,6 +821,7 @@ function openPayslipGeneratorModal() {
 // PAYROLL RUN
 // -----------------------------------------------------------------------------
 async function executePayrollRun() {
+  if (!requireAuth('execute payroll calculations')) return;
   if (currentUser && currentUser.role !== 'ADMIN') {
     showToast('Access restricted: Only Admin can execute company payroll runs.');
     return;
@@ -710,6 +835,7 @@ async function executePayrollRun() {
 }
 
 function openPayrollModal() {
+  if (!requireAuth('run payroll calculations', () => openPayrollModal())) return;
   switchNav('payroll-run');
 }
 
@@ -720,6 +846,7 @@ let activeEntity = null;
 let activeEditId = null;
 
 function openEntityModal(entityType, editId = null) {
+  if (!requireAuth(`manage ${entityType} records`, () => openEntityModal(entityType, editId))) return;
   if (currentUser && currentUser.role !== 'ADMIN') {
     showToast(`Access restricted: Only Admin can modify ${entityType} records.`);
     return;
@@ -895,6 +1022,7 @@ async function deleteEntity(entityType, id) {
 }
 
 async function confirmReset() {
+  if (!requireAuth('reset the DBMS database')) return;
   if (currentUser && currentUser.role !== 'ADMIN') {
     showToast('Access restricted: Only Admin can reset the database.');
     return;
@@ -910,6 +1038,10 @@ async function confirmReset() {
 // SEARCH & EXPORT
 // -----------------------------------------------------------------------------
 function handleGlobalSearch(query) {
+  if (!currentUser) {
+    requireAuth('search DBMS employee and payroll records');
+    return;
+  }
   const q = query.toLowerCase().trim();
   if (!q) {
     renderRecentEmployeesTable();
@@ -980,6 +1112,7 @@ function exportData(type) {
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function openExportModal() {
+  if (!requireAuth('export company reports', () => openExportModal())) return;
   if (currentUser && currentUser.role !== 'ADMIN') {
     showToast('Access restricted: Only Admin can export company reports.');
     return;
