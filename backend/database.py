@@ -280,7 +280,7 @@ def get_salary_audit_logs(grade_id: Optional[str] = None, limit: int = 50) -> Li
     conn.close()
     return rows
 
-def update_salary_grade(grade_id: str, basic_pay: Optional[float] = None, 
+def update_salary_grade(grade_id: str, name: Optional[str] = None, basic_pay: Optional[float] = None, 
                         allowances: Optional[float] = None, deductions: Optional[float] = None,
                         changed_by: str = "ADMIN") -> Dict[str, Any]:
     """
@@ -297,6 +297,7 @@ def update_salary_grade(grade_id: str, basic_pay: Optional[float] = None,
         conn.close()
         raise ValueError(f"Salary Grade '{grade_id}' not found.")
 
+    new_name = name if name is not None else current["name"]
     new_basic = basic_pay if basic_pay is not None else current["basic_pay"]
     new_allow = allowances if allowances is not None else current["allowances"]
     new_ded = deductions if deductions is not None else current["deductions"]
@@ -304,9 +305,9 @@ def update_salary_grade(grade_id: str, basic_pay: Optional[float] = None,
     # Parameterized update statement
     cursor.execute("""
         UPDATE salary_grades
-        SET basic_pay = ?, allowances = ?, deductions = ?
+        SET name = ?, basic_pay = ?, allowances = ?, deductions = ?
         WHERE id = ?;
-    """, (new_basic, new_allow, new_ded, grade_id))
+    """, (new_name, new_basic, new_allow, new_ded, grade_id))
     conn.commit()
 
     # Fetch the newly inserted audit record

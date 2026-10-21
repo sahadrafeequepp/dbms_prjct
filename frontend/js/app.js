@@ -108,7 +108,6 @@ async function loadGuestSummary() {
 
 function requireAuth(actionName = 'access this feature', callback = null) {
   if (currentUser) {
-    if (typeof callback === 'function') callback();
     return true;
   }
 
@@ -622,8 +621,8 @@ function renderEmployeesTable() {
           <span class="status-badge ${isLeave ? 'badge-leave' : 'badge-active'}">${emp.status}</span>
         </td>
         <td style="text-align: right; white-space: nowrap;">
-          <button onclick="openEntityModal('employee', '${emp.id}')" style="color:var(--primary); font-size:12px; font-weight:600; margin-right:10px;">Edit</button>
-          <button onclick="deleteEntity('employee', '${emp.id}')" style="color:var(--rose); font-size:12px; font-weight:600;">Delete</button>
+          <button onclick="openEntityModal('employee', '${emp.id}')" class="admin-only" style="color:var(--primary); font-size:12px; font-weight:600; margin-right:10px; background:none; border:none; cursor:pointer;">Edit</button>
+          <button onclick="deleteEntity('employee', '${emp.id}')" class="admin-only" style="color:var(--rose); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer;">Delete</button>
         </td>
       </tr>
     `;
@@ -658,7 +657,8 @@ function renderDepartmentsGrid() {
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border-subtle);">
-          <button onclick="deleteEntity('department', '${dept.id}')" style="font-size:12px; font-weight:600; color:var(--rose);">Delete</button>
+          <button onclick="openEntityModal('department', '${dept.id}')" class="admin-only" style="font-size:12px; font-weight:600; color:var(--primary); background:none; border:none; cursor:pointer;">Edit</button>
+          <button onclick="deleteEntity('department', '${dept.id}')" class="admin-only" style="font-size:12px; font-weight:600; color:var(--rose); background:none; border:none; cursor:pointer;">Delete</button>
         </div>
       </div>
     `;
@@ -731,12 +731,12 @@ function renderSalarySubGradesTable(filterGrade = null) {
           </span>
         </td>
         <td style="text-align: right; white-space: nowrap;">
-          <button class="btn-customize-amount admin-only" onclick="openCustomizeSubGradeModal('${sg.id}')">
+          <button class="btn-customize-amount admin-only" onclick="openCustomizeSubGradeModal('${sg.id}')" title="Edit Sub-Grade">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M12 20h9"/>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
-            Customize Amount
+            Edit / Customize
           </button>
           <button onclick="deleteEntity('subgrade', '${sg.id}')" class="admin-only" style="color:var(--rose); font-size:12px; font-weight:600; margin-left:10px; background:none; border:none; cursor:pointer;">Delete</button>
         </td>
@@ -768,7 +768,8 @@ function renderSalaryGradesTable() {
         <td class="mono" style="color:var(--rose);">${formatINR(ded)}</td>
         <td class="mono font-semibold">${formatINR(gross)}</td>
         <td class="mono font-semibold" style="color:var(--primary);">${formatINR(net)}</td>
-        <td style="text-align: right;">
+        <td style="text-align: right; white-space: nowrap;">
+          <button onclick="openEntityModal('grade', '${g.id}')" class="admin-only" style="color:var(--primary); font-size:12px; font-weight:600; margin-right:10px; background:none; border:none; cursor:pointer;">Edit</button>
           <button onclick="deleteEntity('grade', '${g.id}')" class="admin-only" style="color:var(--rose); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer;">Delete</button>
         </td>
       </tr>
@@ -1006,40 +1007,63 @@ function openEntityModal(entityType, editId = null) {
       </div>
       <div class="form-group">
         <label class="form-label">Login Username (Portal)</label>
-        <input type="text" class="form-control" data-key="username" placeholder="Defaults to email prefix">
+        <input type="text" class="form-control" data-key="username" value="${rec ? (rec.username || (rec.email ? rec.email.split('@')[0].toLowerCase() : '')) : ''}" placeholder="Defaults to email prefix">
       </div>
       <div class="form-group">
         <label class="form-label">Access Role</label>
-        <select class="form-control" data-key="role" onchange="const p = document.getElementById('modalUserPassword'); if(p) p.value = this.value === 'ADMIN' ? 'admin123' : 'user123';">
-          <option value="EMPLOYEE" selected>Employee (Personal Self-Service Portal Only)</option>
-          <option value="ADMIN">Administrator (Full Company-wide Access)</option>
+        <select class="form-control" data-key="role" onchange="const p = document.getElementById('modalUserPassword'); if(p && !${Boolean(editId)}) p.value = this.value === 'ADMIN' ? 'admin123' : 'user123';">
+          <option value="EMPLOYEE" ${(!rec || rec.role !== 'ADMIN') ? 'selected' : ''}>Employee (Personal Self-Service Portal Only)</option>
+          <option value="ADMIN" ${rec && rec.role === 'ADMIN' ? 'selected' : ''}>Administrator (Full Company-wide Access)</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Initial Password</label>
-        <input type="text" class="form-control" id="modalUserPassword" data-key="password" value="user123" placeholder="Default: user123" required>
-        <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">Default is <code>user123</code> for Employees, <code>admin123</code> for Admins.</span>
+        <label class="form-label">${rec ? 'Reset Password (optional)' : 'Initial Password'}</label>
+        <input type="text" class="form-control" id="modalUserPassword" data-key="password" value="" placeholder="${rec ? 'Leave blank to keep existing password' : 'Default: user123'}" ${rec ? '' : 'required'}>
+        <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">${rec ? 'Leave blank to preserve current credentials.' : 'Default is <code>user123</code> for Employees, <code>admin123</code> for Admins.'}</span>
       </div>
     `;
   } else if (entityType === 'department') {
-    titleEl.innerText = 'Add Department';
-    btnEl.innerText = 'Create Department';
+    titleEl.innerText = editId ? 'Edit Department' : 'Add Department';
+    btnEl.innerText = editId ? 'Save Changes' : 'Create Department';
+    const rec = editId ? appData.departments.find(d => d.id === editId) : null;
     fieldsContainer.innerHTML = `
       <div class="form-group">
         <label class="form-label">Department Name</label>
-        <input type="text" class="form-control" data-key="name" placeholder="e.g. Research & Development" required>
+        <input type="text" class="form-control" data-key="name" value="${rec ? rec.name : ''}" placeholder="e.g. Research & Development" required>
       </div>
       <div class="form-group">
         <label class="form-label">Manager</label>
-        <input type="text" class="form-control" data-key="manager" placeholder="e.g. Dr. Ramesh K" required>
+        <input type="text" class="form-control" data-key="manager" value="${rec ? rec.manager : ''}" placeholder="e.g. Dr. Ramesh K" required>
       </div>
       <div class="form-group">
         <label class="form-label">Annual Allocated Budget (₹)</label>
-        <input type="number" class="form-control" data-key="budget" placeholder="600000" value="600000" required>
+        <input type="number" class="form-control" data-key="budget" placeholder="600000" value="${rec ? (rec.budget || 0) : 600000}" required>
       </div>
       <div class="form-group">
         <label class="form-label">Description</label>
-        <input type="text" class="form-control" data-key="description" placeholder="Department purpose">
+        <input type="text" class="form-control" data-key="description" value="${rec ? (rec.description || '') : ''}" placeholder="Department purpose">
+      </div>
+    `;
+  } else if (entityType === 'grade') {
+    titleEl.innerText = editId ? 'Edit Salary Grade' : 'Add Salary Grade';
+    btnEl.innerText = editId ? 'Save Changes' : 'Create Salary Grade';
+    const rec = editId ? appData.grades.find(g => g.id === editId) : null;
+    fieldsContainer.innerHTML = `
+      <div class="form-group">
+        <label class="form-label">Grade Name</label>
+        <input type="text" class="form-control" data-key="name" value="${rec ? rec.name : ''}" placeholder="e.g. Senior Staff Band 2" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Basic Pay (₹)</label>
+        <input type="number" class="form-control" data-key="basic_pay" value="${rec ? (rec.basic_pay || rec.basicPay || 0) : 50000}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Allowances (₹)</label>
+        <input type="number" class="form-control" data-key="allowances" value="${rec ? (rec.allowances || 0) : 15000}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Deductions (₹)</label>
+        <input type="number" class="form-control" data-key="deductions" value="${rec ? (rec.deductions || 0) : 5000}" required>
       </div>
     `;
   } else if (entityType === 'attendance') {
@@ -1086,22 +1110,20 @@ function updateEmployeeModalSubGrades(gradeId, selectedSubId = null) {
   if (!select) return;
 
   const relevant = (appData.subGrades || []).filter(sg => sg.grade_id === gradeId);
-  if (relevant.length === 0) {
-    select.innerHTML = `<option value="">Standard Base Grade (No Sub-Grade)</option>`;
-    updateEmployeeModalSalaryPreview(null);
-    return;
+  let optionsHtml = `<option value="">Standard Base Grade (No Sub-Grade)</option>`;
+  if (relevant.length > 0) {
+    optionsHtml += relevant.map(sg => {
+      const basic = Number(sg.basic_pay || sg.basicPay || 0);
+      const allow = Number(sg.allowances || 0);
+      const ded = Number(sg.deductions || 0);
+      const net = basic + allow - ded;
+      const isSel = selectedSubId ? sg.id === selectedSubId : false;
+      return `<option value="${sg.id}" ${isSel ? 'selected' : ''}>${sg.id} - ${sg.name} (${formatINR(net)}/mo net)</option>`;
+    }).join('');
   }
+  select.innerHTML = optionsHtml;
 
-  select.innerHTML = relevant.map(sg => {
-    const basic = Number(sg.basic_pay || sg.basicPay || 0);
-    const allow = Number(sg.allowances || 0);
-    const ded = Number(sg.deductions || 0);
-    const net = basic + allow - ded;
-    const isSel = selectedSubId ? sg.id === selectedSubId : false;
-    return `<option value="${sg.id}" ${isSel ? 'selected' : ''}>${sg.id} - ${sg.name} (${formatINR(net)}/mo net)</option>`;
-  }).join('');
-
-  const targetSubId = selectedSubId || (relevant[0] ? relevant[0].id : null);
+  const targetSubId = selectedSubId || null;
   updateEmployeeModalSalaryPreview(targetSubId);
 }
 
@@ -1136,7 +1158,8 @@ function updateEmployeeModalSalaryPreview(subGradeId) {
   `;
 }
 
-async function handleEntitySubmit() {
+async function handleEntitySubmit(event) {
+  if (event) event.preventDefault();
   const inputs = document.querySelectorAll('#entityModalFields [data-key]');
   const data = {};
 
@@ -1151,27 +1174,54 @@ async function handleEntitySubmit() {
     data[el.dataset.key] = val;
   }
 
-  if (activeEntity === 'employee') {
-    if (activeEditId) {
-      await API.updateEmployee(activeEditId, data);
-      showToast(`Updated employee ${activeEditId}`);
-    } else {
-      await API.createEmployee(data);
-      showToast(`Added new employee`);
-    }
-  } else if (activeEntity === 'department') {
-    await API.createDepartment(data);
-    showToast(`Added new department`);
-  } else if (activeEntity === 'grade') {
-    await API.createGrade(data);
-    showToast(`Added new salary grade`);
-  } else if (activeEntity === 'attendance') {
-    await API.createAttendance(data);
-    showToast(`Attendance recorded`);
+  const submitBtn = document.getElementById('entitySubmitBtn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Saving...';
   }
 
-  closeModal('entityModal');
-  await loadAndRenderAll();
+  try {
+    if (activeEntity === 'employee') {
+      if (activeEditId) {
+        if (!data.password) delete data.password;
+        await API.updateEmployee(activeEditId, data);
+        showToast(`Updated employee ${activeEditId}`);
+      } else {
+        await API.createEmployee(data);
+        showToast(`Added new employee`);
+      }
+    } else if (activeEntity === 'department') {
+      if (activeEditId) {
+        await API.updateDepartment(activeEditId, data);
+        showToast(`Updated department ${activeEditId}`);
+      } else {
+        await API.createDepartment(data);
+        showToast(`Added new department`);
+      }
+    } else if (activeEntity === 'grade') {
+      if (activeEditId) {
+        await API.updateGrade(activeEditId, data);
+        showToast(`Updated salary grade ${activeEditId}`);
+      } else {
+        await API.createGrade(data);
+        showToast(`Added new salary grade`);
+      }
+    } else if (activeEntity === 'attendance') {
+      await API.createAttendance(data);
+      showToast(`Attendance recorded`);
+    }
+
+    closeModal('entityModal');
+    await loadAndRenderAll();
+  } catch (err) {
+    console.error('Error in handleEntitySubmit:', err);
+    showToast(`Error: ${err.message || 'Operation failed'}`);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = activeEditId ? 'Save Changes' : 'Save Record';
+    }
+  }
 }
 
 async function deleteEntity(entityType, id) {

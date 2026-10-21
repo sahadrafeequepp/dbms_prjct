@@ -1336,14 +1336,13 @@
         <h3 id="entityModalTitle">Add Record</h3>
         <button class="modal-close-btn" onclick="closeModal('entityModal')">&times;</button>
       </div>
-      <form id="entityFormModal">
+      <form id="entityFormModal" onsubmit="handleEntitySubmit(event)">
         <div class="modal-body" id="entityModalFields">
           <!-- Dynamically populated via js/app.js -->
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" onclick="closeModal('entityModal')">Cancel</button>
-          <button type="button" class="btn-primary" onclick="handleEntitySubmit()" id="entitySubmitBtn">Save
-            Record</button>
+          <button type="submit" class="btn-primary" id="entitySubmitBtn">Save Record</button>
         </div>
       </form>
     </div>

@@ -38,6 +38,9 @@ class EmployeeUpdate(BaseModel):
     sub_grade_id: Optional[str] = None
     status: Optional[str] = None
     avatar: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
 
 
 class DepartmentCreate(BaseModel):
@@ -58,6 +61,7 @@ class GradeCreate(BaseModel):
 
 class SalaryGradeUpdate(BaseModel):
     """Payload for updating salary band, demonstrating the audit trigger."""
+    name: Optional[str] = Field(None, description="Updated grade name")
     basic_pay: Optional[float] = Field(None, gt=0, description="Updated basic pay (must be > 0)")
     allowances: Optional[float] = Field(None, ge=0, description="Updated allowances")
     deductions: Optional[float] = Field(None, ge=0, description="Updated deductions")

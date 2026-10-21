@@ -319,11 +319,13 @@ def list_employees(dept_id: Optional[str] = None, emp_id: Optional[str] = None, 
                sg.name AS sub_grade_name,
                COALESCE(sg.basic_pay, g.basic_pay) AS basic_pay,
                COALESCE(sg.allowances, g.allowances) AS allowances,
-               COALESCE(sg.deductions, g.deductions) AS deductions
+               COALESCE(sg.deductions, g.deductions) AS deductions,
+               u.username, u.role
         FROM employees e
         JOIN departments d ON e.dept_id = d.id
         JOIN salary_grades g ON e.grade_id = g.id
         LEFT JOIN salary_sub_grades sg ON e.sub_grade_id = sg.id
+        LEFT JOIN users u ON e.id = u.emp_id
         WHERE 1=1
     """
     params = []
@@ -357,13 +359,14 @@ def create_employee(payload: EmployeeCreate, _user: dict = Depends(require_authe
     default_pass = "admin123" if role == "ADMIN" else "user123"
     password = payload.password.strip() if payload.password and payload.password.strip() else default_pass
     username = payload.username.strip().lower() if payload.username and payload.username.strip() else payload.email.split("@")[0].lower()
+    sub_grade = payload.sub_grade_id.strip() if (payload.sub_grade_id and payload.sub_grade_id.strip()) else None
 
     try:
         # 2. Insert into employees master table with sub_grade_id
         c.execute("""
             INSERT INTO employees (id, name, email, designation, dept_id, grade_id, sub_grade_id, status, avatar)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """, (new_id, payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.sub_grade_id, payload.status, avatar))
+        """, (new_id, payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, sub_grade, payload.status, avatar))
 
         # 3. Generate User ID (USR01, USR02, ...)
         c.execute("SELECT id FROM users;")
@@ -392,21 +395,44 @@ def create_employee(payload: EmployeeCreate, _user: dict = Depends(require_authe
     }
 
 @app.put("/api/employees/{emp_id}")
-def update_employee(emp_id: str, payload: EmployeeCreate, _user: dict = Depends(require_authenticated_user)):
+def update_employee(emp_id: str, payload: EmployeeUpdate, _user: dict = Depends(require_authenticated_user)):
     conn = get_connection()
     c = conn.cursor()
     try:
+        c.execute("SELECT * FROM employees WHERE id = ?;", (emp_id,))
+        curr = c.fetchone()
+        if not curr:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Employee {emp_id} not found")
+
+        name = payload.name if payload.name is not None else curr["name"]
+        email = payload.email if payload.email is not None else curr["email"]
+        designation = payload.designation if payload.designation is not None else curr["designation"]
+        dept_id = payload.dept_id if payload.dept_id is not None else curr["dept_id"]
+        grade_id = payload.grade_id if payload.grade_id is not None else curr["grade_id"]
+        
+        sub_grade = curr["sub_grade_id"]
+        if payload.sub_grade_id is not None:
+            sub_grade = payload.sub_grade_id.strip() if payload.sub_grade_id.strip() else None
+
+        status = payload.status if payload.status is not None else curr["status"]
+        avatar = payload.avatar if payload.avatar is not None else curr["avatar"]
+
         c.execute("""
             UPDATE employees 
-            SET name = ?, email = ?, designation = ?, dept_id = ?, grade_id = ?, sub_grade_id = ?, status = ?
+            SET name = ?, email = ?, designation = ?, dept_id = ?, grade_id = ?, sub_grade_id = ?, status = ?, avatar = ?
             WHERE id = ?;
-        """, (payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.sub_grade_id, payload.status, emp_id))
+        """, (name, email, designation, dept_id, grade_id, sub_grade, status, avatar, emp_id))
 
-        # Update login credentials if provided
+        # Update login credentials in users table if provided
         if payload.password and payload.password.strip():
             c.execute("UPDATE users SET password = ? WHERE emp_id = ?;", (payload.password.strip(), emp_id))
         if payload.role in ("ADMIN", "EMPLOYEE"):
             c.execute("UPDATE users SET role = ? WHERE emp_id = ?;", (payload.role, emp_id))
+        if payload.email and payload.email.strip():
+            c.execute("UPDATE users SET email = ? WHERE emp_id = ?;", (payload.email.strip(), emp_id))
+        if payload.username and payload.username.strip():
+            c.execute("UPDATE users SET username = ? WHERE emp_id = ?;", (payload.username.strip().lower(), emp_id))
             
         conn.commit()
     except Exception as e:
@@ -469,6 +495,23 @@ def delete_department(dept_id: str, _user: dict = Depends(require_authenticated_
     conn.close()
     return {"message": f"Department {dept_id} deleted"}
 
+@app.put("/api/departments/{dept_id}")
+def update_department(dept_id: str, payload: DepartmentCreate, _user: dict = Depends(require_authenticated_user)):
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("""
+            UPDATE departments 
+            SET name = ?, manager = ?, budget = ?, description = ?
+            WHERE id = ?;
+        """, (payload.name, payload.manager, payload.budget, payload.description, dept_id))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"message": f"Department {dept_id} updated"}
+
 # -----------------------------------------------------------------------------
 # SALARY GRADES CRUD
 # -----------------------------------------------------------------------------
@@ -514,6 +557,7 @@ def edit_grade(grade_id: str, payload: SalaryGradeUpdate, _user: dict = Depends(
     try:
         result = update_salary_grade(
             grade_id=grade_id,
+            name=payload.name,
             basic_pay=payload.basic_pay,
             allowances=payload.allowances,
             deductions=payload.deductions,

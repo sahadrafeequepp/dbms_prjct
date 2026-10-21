@@ -83,6 +83,14 @@ const API = {
       const err = await res.json().catch(() => ({ detail: 'Authentication required. Please sign in.' }));
       throw new Error(err.detail || 'Authentication required');
     }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+      let msg = err.detail || err.message || `Request failed (${res.status})`;
+      if (Array.isArray(msg)) {
+        msg = msg.map(m => m.msg || JSON.stringify(m)).join(', ');
+      }
+      throw new Error(msg);
+    }
     return res;
   },
 
@@ -225,6 +233,17 @@ const API = {
     return LocalDB.createDepartment(data);
   },
 
+  async updateDepartment(id, data) {
+    if (this.isBackendConnected) {
+      const res = await this.request(`/api/departments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    }
+    return LocalDB.updateDepartment(id, data);
+  },
+
   async deleteDepartment(id) {
     if (this.isBackendConnected) {
       const res = await this.request(`/api/departments/${id}`, { method: 'DELETE' });
@@ -250,6 +269,17 @@ const API = {
       return await res.json();
     }
     return LocalDB.createGrade(data);
+  },
+
+  async updateGrade(id, data) {
+    if (this.isBackendConnected) {
+      const res = await this.request(`/api/grades/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    }
+    return LocalDB.updateGrade(id, data);
   },
 
   async deleteGrade(id) {
@@ -467,9 +497,19 @@ const LocalDB = {
   },
   getEmployees(deptId = 'ALL', empId = null) {
     const db = this.load();
+    const users = db.users || [];
     return db.employees.filter(e => {
       if (empId && e.id !== empId) return false;
       return deptId === 'ALL' || e.deptId === deptId || e.dept_id === deptId;
+    }).map(e => {
+      const u = users.find(usr => usr.emp_id === e.id);
+      return {
+        ...e,
+        dept_id: e.dept_id || e.deptId,
+        grade_id: e.grade_id || e.gradeId,
+        username: u ? u.username : (e.email ? e.email.split('@')[0].toLowerCase() : ''),
+        role: u ? u.role : (e.role || 'EMPLOYEE')
+      };
     });
   },
   createEmployee(data) {
@@ -498,7 +538,20 @@ const LocalDB = {
     const db = this.load();
     const idx = db.employees.findIndex(e => e.id === id);
     if (idx !== -1) {
-      db.employees[idx] = { ...db.employees[idx], ...data };
+      db.employees[idx] = { 
+        ...db.employees[idx], 
+        ...data,
+        deptId: data.dept_id || data.deptId || db.employees[idx].deptId,
+        gradeId: data.grade_id || data.gradeId || db.employees[idx].gradeId
+      };
+      if (!db.users) db.users = [];
+      const uIdx = db.users.findIndex(u => u.emp_id === id);
+      if (uIdx !== -1) {
+        if (data.email) db.users[uIdx].email = data.email;
+        if (data.username && data.username.trim()) db.users[uIdx].username = data.username.trim().toLowerCase();
+        if (data.password && data.password.trim()) db.users[uIdx].password = data.password.trim();
+        if (data.role) db.users[uIdx].role = data.role;
+      }
       this.save(db);
     }
     return { message: 'Updated' };
@@ -526,6 +579,15 @@ const LocalDB = {
     this.save(db);
     return { message: 'Deleted' };
   },
+  updateDepartment(id, data) {
+    const db = this.load();
+    const idx = db.departments.findIndex(d => d.id === id);
+    if (idx !== -1) {
+      db.departments[idx] = { ...db.departments[idx], ...data };
+      this.save(db);
+    }
+    return { message: 'Updated' };
+  },
   getGrades() {
     const db = this.load();
     return db.grades;
@@ -536,6 +598,23 @@ const LocalDB = {
     db.grades.push({ id, ...data });
     this.save(db);
     return { message: 'Created', id };
+  },
+  updateGrade(id, data) {
+    const db = this.load();
+    const idx = db.grades.findIndex(g => g.id === id);
+    if (idx !== -1) {
+      const basic = data.basic_pay !== undefined ? Number(data.basic_pay) : (data.basicPay !== undefined ? Number(data.basicPay) : db.grades[idx].basicPay);
+      db.grades[idx] = { 
+        ...db.grades[idx], 
+        ...data,
+        basicPay: basic,
+        basic_pay: basic,
+        allowances: data.allowances !== undefined ? Number(data.allowances) : db.grades[idx].allowances,
+        deductions: data.deductions !== undefined ? Number(data.deductions) : db.grades[idx].deductions
+      };
+      this.save(db);
+    }
+    return { message: 'Updated' };
   },
   deleteGrade(id) {
     const db = this.load();
