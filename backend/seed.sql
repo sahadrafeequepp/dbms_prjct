@@ -18,32 +18,46 @@ INSERT OR REPLACE INTO salary_grades (id, name, basic_pay, allowances, deduction
 ('G2', 'Senior Associate Level 2', 52000.0, 9500.0, 4200.0),
 ('G3', 'Lead / Principal Level 3', 72000.0, 14000.0, 6000.0);
 
+-- 2B. SEED SALARY SUB-GRADES (Customizable Pay Tiers)
+INSERT OR REPLACE INTO salary_sub_grades (id, grade_id, name, basic_pay, allowances, deductions, description) VALUES
+('SG1-A', 'G1', 'Executive Level 1 - Junior', 28000.0, 5000.0, 2200.0, 'Entry-level executive with standard starter compensation'),
+('SG1-B', 'G1', 'Executive Level 1 - Standard', 32000.0, 6000.0, 2500.0, 'Core executive band with standard benefits'),
+('SG1-C', 'G1', 'Executive Level 1 - Senior', 36000.0, 7000.0, 2800.0, 'Experienced executive with enhanced allowance package'),
+
+('SG2-A', 'G2', 'Senior Associate - Level 2A', 48000.0, 8500.0, 3800.0, 'Associate tier with core allowances'),
+('SG2-B', 'G2', 'Senior Associate - Level 2B', 52000.0, 9500.0, 4200.0, 'Standard senior associate pay scale'),
+('SG2-C', 'G2', 'Senior Associate - Level 2C (Specialist)', 58000.0, 11000.0, 4800.0, 'Specialist senior associate with higher allowances'),
+
+('SG3-A', 'G3', 'Lead / Principal - Grade 3A', 68000.0, 12500.0, 5500.0, 'Team lead base pay structure'),
+('SG3-B', 'G3', 'Lead / Principal - Grade 3B', 72000.0, 14000.0, 6000.0, 'Principal engineer / Manager standard tier'),
+('SG3-C', 'G3', 'Lead / Principal - Grade 3C (Distinguished)', 82000.0, 16500.0, 7000.0, 'Distinguished / Staff grade tier with maximum allowances');
+
 -- 3. SEED EMPLOYEES
-INSERT OR REPLACE INTO employees (id, name, email, designation, dept_id, grade_id, status, avatar) VALUES
-('EMP001', 'Raneem Muhammed', 'raneem@company.com', 'Principal Architect', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-('EMP002', 'Fathima Noushad', 'fathima@company.com', 'HR Specialist', 'D02', 'G2', 'Active', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80'),
-('EMP003', 'Arjun K', 'arjun@company.com', 'Senior Accountant', 'D03', 'G2', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'),
-('EMP004', 'Sneha P S', 'sneha@company.com', 'Marketing Lead', 'D04', 'G1', 'Active', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'),
-('EMP005', 'Vishnu R', 'vishnu@company.com', 'Operations Manager', 'D05', 'G3', 'On Leave', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
-('EMP006', 'Sahad Rafeeque', 'sahad@company.com', 'Database Administrator', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'),
-('EMP007', 'Varna V', 'varna@company.com', 'HR Lead & Admin', 'D02', 'G3', 'Active', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'),
-('EMP008', 'Gopika M M', 'gopika@company.com', 'Financial Analyst', 'D03', 'G2', 'Active', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80'),
-('EMP009', 'Anjali S Nair', 'anjali@company.com', 'Full Stack Engineer', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
-('EMP010', 'Kiran Mohan', 'kiran@company.com', 'DevOps Associate', 'D01', 'G1', 'Active', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80'),
-('EMP011', 'Devika Menon', 'devika@company.com', 'Content Strategist', 'D04', 'G2', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-('EMP012', 'Manoj Kumar', 'manoj@company.com', 'Facilities Supervisor', 'D05', 'G1', 'Active', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80'),
-('EMP013', 'Siddharth S', 'siddharth@company.com', 'Security Analyst', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
-('EMP014', 'Pooja Pillai', 'pooja@company.com', 'Talent Coordinator', 'D02', 'G1', 'Active', 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=100&auto=format&fit=crop&q=80'),
-('EMP015', 'Naveen George', 'naveen@company.com', 'Logistics Planner', 'D05', 'G2', 'Active', 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=100&auto=format&fit=crop&q=80'),
-('EMP016', 'Lakshmi Rajan', 'lakshmi@company.com', 'Accounts Assistant', 'D03', 'G1', 'Active', 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=100&auto=format&fit=crop&q=80'),
-('EMP017', 'Rahul Varma', 'rahul@company.com', 'Data Scientist', 'D01', 'G3', 'Active', 'https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=100&auto=format&fit=crop&q=80'),
-('EMP018', 'Gayathri S', 'gayathri@company.com', 'Social Media Exec', 'D04', 'G1', 'On Leave', 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=100&auto=format&fit=crop&q=80'),
-('EMP019', 'Abhishek Roy', 'abhishek@company.com', 'Junior Developer', 'D01', 'G1', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
-('EMP020', 'Meera Nambiar', 'meera@company.com', 'HR Generalist', 'D02', 'G2', 'Active', 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&auto=format&fit=crop&q=80'),
-('EMP021', 'Harish Babu', 'harish@company.com', 'Field Operations', 'D05', 'G2', 'Active', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80'),
-('EMP022', 'Deepa Krishnan', 'deepa@company.com', 'QA Automation Lead', 'D01', 'G2', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
-('EMP023', 'Roshan Thomas', 'roshan@company.com', 'Tax & Compliance Mgr', 'D03', 'G3', 'Active', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
-('EMP024', 'Vivek Chandran', 'vivek@company.com', 'Store In-Charge', 'D05', 'G1', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80');
+INSERT OR REPLACE INTO employees (id, name, email, designation, dept_id, grade_id, sub_grade_id, status, avatar) VALUES
+('EMP001', 'Raneem Muhammed', 'raneem@company.com', 'Principal Architect', 'D01', 'G3', 'SG3-B', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
+('EMP002', 'Fathima Noushad', 'fathima@company.com', 'HR Specialist', 'D02', 'G2', 'SG2-B', 'Active', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80'),
+('EMP003', 'Arjun K', 'arjun@company.com', 'Senior Accountant', 'D03', 'G2', 'SG2-A', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'),
+('EMP004', 'Sneha P S', 'sneha@company.com', 'Marketing Lead', 'D04', 'G1', 'SG1-C', 'Active', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'),
+('EMP005', 'Vishnu R', 'vishnu@company.com', 'Operations Manager', 'D05', 'G3', 'SG3-A', 'On Leave', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
+('EMP006', 'Sahad Rafeeque', 'sahad@company.com', 'Database Administrator', 'D01', 'G3', 'SG3-B', 'Active', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'),
+('EMP007', 'Varna V', 'varna@company.com', 'HR Lead & Admin', 'D02', 'G3', 'SG3-B', 'Active', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'),
+('EMP008', 'Gopika M M', 'gopika@company.com', 'Financial Analyst', 'D03', 'G2', 'SG2-C', 'Active', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80'),
+('EMP009', 'Anjali S Nair', 'anjali@company.com', 'Full Stack Engineer', 'D01', 'G2', 'SG2-B', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
+('EMP010', 'Kiran Mohan', 'kiran@company.com', 'DevOps Associate', 'D01', 'G1', 'SG1-A', 'Active', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80'),
+('EMP011', 'Devika Menon', 'devika@company.com', 'Content Strategist', 'D04', 'G2', 'SG2-A', 'Active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
+('EMP012', 'Manoj Kumar', 'manoj@company.com', 'Facilities Supervisor', 'D05', 'G1', 'SG1-B', 'Active', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80'),
+('EMP013', 'Siddharth S', 'siddharth@company.com', 'Security Analyst', 'D01', 'G2', 'SG2-B', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
+('EMP014', 'Pooja Pillai', 'pooja@company.com', 'Talent Coordinator', 'D02', 'G1', 'SG1-A', 'Active', 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=100&auto=format&fit=crop&q=80'),
+('EMP015', 'Naveen George', 'naveen@company.com', 'Logistics Planner', 'D05', 'G2', 'SG2-A', 'Active', 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=100&auto=format&fit=crop&q=80'),
+('EMP016', 'Lakshmi Rajan', 'lakshmi@company.com', 'Accounts Assistant', 'D03', 'G1', 'SG1-A', 'Active', 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=100&auto=format&fit=crop&q=80'),
+('EMP017', 'Rahul Varma', 'rahul@company.com', 'Data Scientist', 'D01', 'G3', 'SG3-B', 'Active', 'https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=100&auto=format&fit=crop&q=80'),
+('EMP018', 'Gayathri S', 'gayathri@company.com', 'Social Media Exec', 'D04', 'G1', 'SG1-B', 'On Leave', 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=100&auto=format&fit=crop&q=80'),
+('EMP019', 'Abhishek Roy', 'abhishek@company.com', 'Junior Developer', 'D01', 'G1', 'SG1-A', 'Active', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'),
+('EMP020', 'Meera Nambiar', 'meera@company.com', 'HR Generalist', 'D02', 'G2', 'SG2-B', 'Active', 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&auto=format&fit=crop&q=80'),
+('EMP021', 'Harish Babu', 'harish@company.com', 'Field Operations', 'D05', 'G2', 'SG2-A', 'Active', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80'),
+('EMP022', 'Deepa Krishnan', 'deepa@company.com', 'QA Automation Lead', 'D01', 'G2', 'SG2-C', 'Active', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'),
+('EMP023', 'Roshan Thomas', 'roshan@company.com', 'Tax & Compliance Mgr', 'D03', 'G3', 'SG3-C', 'Active', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'),
+('EMP024', 'Vivek Chandran', 'vivek@company.com', 'Store In-Charge', 'D05', 'G1', 'SG1-B', 'Active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80');
 
 -- 4. SEED USERS (Role-Based Authentication)
 INSERT OR REPLACE INTO users (id, username, email, password, role, emp_id) VALUES

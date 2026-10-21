@@ -260,6 +260,45 @@ const API = {
     return LocalDB.deleteGrade(id);
   },
 
+  async getSubGrades(gradeId = null) {
+    if (this.isBackendConnected) {
+      const url = gradeId ? `/api/subgrades?grade_id=${encodeURIComponent(gradeId)}` : '/api/subgrades';
+      const res = await this.request(url);
+      return await res.json();
+    }
+    return LocalDB.getSubGrades(gradeId);
+  },
+
+  async createSubGrade(data) {
+    if (this.isBackendConnected) {
+      const res = await this.request('/api/subgrades', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    }
+    return LocalDB.createSubGrade(data);
+  },
+
+  async updateSubGrade(id, data) {
+    if (this.isBackendConnected) {
+      const res = await this.request(`/api/subgrades/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    }
+    return LocalDB.updateSubGrade(id, data);
+  },
+
+  async deleteSubGrade(id) {
+    if (this.isBackendConnected) {
+      const res = await this.request(`/api/subgrades/${id}`, { method: 'DELETE' });
+      return await res.json();
+    }
+    return LocalDB.deleteSubGrade(id);
+  },
+
   async getAttendance(month = 'June 2025', empId = null) {
     if (this.isBackendConnected) {
       let url = `/api/attendance?month=${encodeURIComponent(month)}`;
@@ -334,15 +373,28 @@ const INITIAL_SEED_STORAGE = {
     { id: 'G2', name: 'Senior Associate Level 2', basicPay: 52000, allowances: 9500, deductions: 4200 },
     { id: 'G3', name: 'Lead / Principal Level 3', basicPay: 72000, allowances: 14000, deductions: 6000 }
   ],
+  sub_grades: [
+    { id: 'SG1-A', grade_id: 'G1', name: 'Executive Level 1 - Junior', basic_pay: 28000, allowances: 5000, deductions: 2200, description: 'Entry-level executive with standard starter compensation' },
+    { id: 'SG1-B', grade_id: 'G1', name: 'Executive Level 1 - Standard', basic_pay: 32000, allowances: 6000, deductions: 2500, description: 'Core executive band with standard benefits' },
+    { id: 'SG1-C', grade_id: 'G1', name: 'Executive Level 1 - Senior', basic_pay: 36000, allowances: 7000, deductions: 2800, description: 'Experienced executive with enhanced allowance package' },
+
+    { id: 'SG2-A', grade_id: 'G2', name: 'Senior Associate - Level 2A', basic_pay: 48000, allowances: 8500, deductions: 3800, description: 'Associate tier with core allowances' },
+    { id: 'SG2-B', grade_id: 'G2', name: 'Senior Associate - Level 2B', basic_pay: 52000, allowances: 9500, deductions: 4200, description: 'Standard senior associate pay scale' },
+    { id: 'SG2-C', grade_id: 'G2', name: 'Senior Associate - Level 2C (Specialist)', basic_pay: 58000, allowances: 11000, deductions: 4800, description: 'Specialist senior associate with higher allowances' },
+
+    { id: 'SG3-A', grade_id: 'G3', name: 'Lead / Principal - Grade 3A', basic_pay: 68000, allowances: 12500, deductions: 5500, description: 'Team lead base pay structure' },
+    { id: 'SG3-B', grade_id: 'G3', name: 'Lead / Principal - Grade 3B', basic_pay: 72000, allowances: 14000, deductions: 6000, description: 'Principal engineer / Manager standard tier' },
+    { id: 'SG3-C', grade_id: 'G3', name: 'Lead / Principal - Grade 3C (Distinguished)', basic_pay: 82000, allowances: 16500, deductions: 7000, description: 'Distinguished / Staff grade tier with maximum allowances' }
+  ],
   employees: [
-    { id: 'EMP001', name: 'Raneem Muhammed', email: 'raneem@company.com', deptId: 'D01', gradeId: 'G3', designation: 'Principal Architect', status: 'Active', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP002', name: 'Fathima Noushad', email: 'fathima@company.com', deptId: 'D02', gradeId: 'G2', designation: 'HR Specialist', status: 'Active', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP003', name: 'Arjun K', email: 'arjun@company.com', deptId: 'D03', gradeId: 'G2', designation: 'Senior Accountant', status: 'Active', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP004', name: 'Sneha P S', email: 'sneha@company.com', deptId: 'D04', gradeId: 'G1', designation: 'Marketing Lead', status: 'Active', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP005', name: 'Vishnu R', email: 'vishnu@company.com', deptId: 'D05', gradeId: 'G3', designation: 'Operations Manager', status: 'On Leave', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP006', name: 'Sahad Rafeeque', email: 'sahad@company.com', deptId: 'D01', gradeId: 'G3', designation: 'Database Administrator', status: 'Active', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP007', name: 'Varna V', email: 'varna@company.com', deptId: 'D02', gradeId: 'G3', designation: 'HR Lead & Admin', status: 'Active', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80' },
-    { id: 'EMP008', name: 'Gopika M M', email: 'gopika@company.com', deptId: 'D03', gradeId: 'G2', designation: 'Financial Analyst', status: 'Active', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80' }
+    { id: 'EMP001', name: 'Raneem Muhammed', email: 'raneem@company.com', deptId: 'D01', gradeId: 'G3', sub_grade_id: 'SG3-B', designation: 'Principal Architect', status: 'Active', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP002', name: 'Fathima Noushad', email: 'fathima@company.com', deptId: 'D02', gradeId: 'G2', sub_grade_id: 'SG2-B', designation: 'HR Specialist', status: 'Active', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP003', name: 'Arjun K', email: 'arjun@company.com', deptId: 'D03', gradeId: 'G2', sub_grade_id: 'SG2-A', designation: 'Senior Accountant', status: 'Active', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP004', name: 'Sneha P S', email: 'sneha@company.com', deptId: 'D04', gradeId: 'G1', sub_grade_id: 'SG1-C', designation: 'Marketing Lead', status: 'Active', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP005', name: 'Vishnu R', email: 'vishnu@company.com', deptId: 'D05', gradeId: 'G3', sub_grade_id: 'SG3-A', designation: 'Operations Manager', status: 'On Leave', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP006', name: 'Sahad Rafeeque', email: 'sahad@company.com', deptId: 'D01', gradeId: 'G3', sub_grade_id: 'SG3-B', designation: 'Database Administrator', status: 'Active', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP007', name: 'Varna V', email: 'varna@company.com', deptId: 'D02', gradeId: 'G3', sub_grade_id: 'SG3-B', designation: 'HR Lead & Admin', status: 'Active', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80' },
+    { id: 'EMP008', name: 'Gopika M M', email: 'gopika@company.com', deptId: 'D03', gradeId: 'G2', sub_grade_id: 'SG2-C', designation: 'Financial Analyst', status: 'Active', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80' }
   ],
   attendance: [
     { id: 'ATT-001', empId: 'EMP001', month: 'June 2025', daysPresent: 22, unpaidLeaves: 0 },
@@ -489,6 +541,58 @@ const LocalDB = {
     const db = this.load();
     db.grades = db.grades.filter(g => g.id !== id);
     this.save(db);
+    return { message: 'Deleted' };
+  },
+  getSubGrades(gradeId = null) {
+    const db = this.load();
+    if (!db.sub_grades) {
+      db.sub_grades = JSON.parse(JSON.stringify(INITIAL_SEED_STORAGE.sub_grades));
+      this.save(db);
+    }
+    let list = db.sub_grades;
+    if (gradeId && gradeId !== 'ALL') {
+      list = list.filter(sg => sg.grade_id === gradeId);
+    }
+    return list.map(sg => {
+      const g = db.grades.find(gr => gr.id === sg.grade_id) || {};
+      const empCount = (db.employees || []).filter(e => (e.sub_grade_id || e.subGradeId) === sg.id).length;
+      const basic = Number(sg.basic_pay || sg.basicPay || 0);
+      const allow = Number(sg.allowances || 0);
+      const ded = Number(sg.deductions || 0);
+      return {
+        ...sg,
+        grade_name: g.name || sg.grade_id,
+        employee_count: empCount,
+        gross_benchmark: basic + allow,
+        net_benchmark: basic + allow - ded
+      };
+    });
+  },
+  createSubGrade(data) {
+    const db = this.load();
+    if (!db.sub_grades) db.sub_grades = JSON.parse(JSON.stringify(INITIAL_SEED_STORAGE.sub_grades));
+    const gradeNum = String(data.grade_id || 'G1').replace('G', '');
+    const id = data.id || `SG${gradeNum}-${String.fromCharCode(65 + db.sub_grades.filter(s => s.grade_id === data.grade_id).length)}`;
+    db.sub_grades.push({ id, ...data });
+    this.save(db);
+    return { message: 'Created', id };
+  },
+  updateSubGrade(id, data) {
+    const db = this.load();
+    if (!db.sub_grades) db.sub_grades = JSON.parse(JSON.stringify(INITIAL_SEED_STORAGE.sub_grades));
+    const idx = db.sub_grades.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      db.sub_grades[idx] = { ...db.sub_grades[idx], ...data };
+      this.save(db);
+    }
+    return { message: 'Updated', sub_grade_id: id, updated: data };
+  },
+  deleteSubGrade(id) {
+    const db = this.load();
+    if (db.sub_grades) {
+      db.sub_grades = db.sub_grades.filter(s => s.id !== id);
+      this.save(db);
+    }
     return { message: 'Deleted' };
   },
   getAttendance(month, empId = null) {

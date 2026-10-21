@@ -20,6 +20,7 @@ class EmployeeCreate(BaseModel):
     designation: str = Field(..., description="Job role / designation")
     dept_id: str = Field(..., description="Foreign key to departments (e.g. D01)")
     grade_id: str = Field(..., description="Foreign key to salary_grades (e.g. G2)")
+    sub_grade_id: Optional[str] = Field(None, description="Foreign key to salary_sub_grades (e.g. SG2-B)")
     status: str = Field("Active", description="Employment status (Active, On Leave, Resigned)")
     avatar: Optional[str] = Field(None, description="Image URL for avatar profile")
     password: Optional[str] = Field("user123", description="Portal login password")
@@ -34,6 +35,7 @@ class EmployeeUpdate(BaseModel):
     designation: Optional[str] = None
     dept_id: Optional[str] = None
     grade_id: Optional[str] = None
+    sub_grade_id: Optional[str] = None
     status: Optional[str] = None
     avatar: Optional[str] = None
 
@@ -60,6 +62,27 @@ class SalaryGradeUpdate(BaseModel):
     allowances: Optional[float] = Field(None, ge=0, description="Updated allowances")
     deductions: Optional[float] = Field(None, ge=0, description="Updated deductions")
     changed_by: Optional[str] = Field("ADMIN_USER", description="Username performing the change")
+
+
+class SubGradeCreate(BaseModel):
+    """Salary sub-grade pay tier payload."""
+    id: Optional[str] = Field(None, description="Optional custom sub-grade ID (e.g. SG1-D)")
+    grade_id: str = Field(..., description="Parent salary grade ID (e.g. G1, G2, G3)")
+    name: str = Field(..., description="Sub-grade title (e.g. Senior Associate - Specialist)")
+    basic_pay: float = Field(..., gt=0, description="Customized basic pay in INR (must be > 0)")
+    allowances: float = Field(0.0, ge=0, description="Customized allowances in INR")
+    deductions: float = Field(0.0, ge=0, description="Customized standard deductions in INR")
+    description: Optional[str] = Field("", description="Tier description or notes")
+
+
+class SubGradeUpdate(BaseModel):
+    """Payload for customizing sub-grade salary amounts and details."""
+    name: Optional[str] = Field(None, description="Sub-grade title")
+    basic_pay: Optional[float] = Field(None, gt=0, description="Customized basic pay (must be > 0)")
+    allowances: Optional[float] = Field(None, ge=0, description="Customized allowances")
+    deductions: Optional[float] = Field(None, ge=0, description="Customized deductions")
+    description: Optional[str] = Field(None, description="Description notes")
+    changed_by: Optional[str] = Field("ADMIN", description="Admin username making customization")
 
 
 class AttendanceCreate(BaseModel):

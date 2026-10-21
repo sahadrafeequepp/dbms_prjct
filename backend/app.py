@@ -26,7 +26,12 @@ from backend.database import (
     get_monthly_payroll_summary,
     get_department_salary_costs,
     get_salary_audit_logs,
-    update_salary_grade
+    update_salary_grade,
+    get_sub_grades,
+    get_sub_grade_by_id,
+    create_sub_grade,
+    update_sub_grade,
+    delete_sub_grade
 )
 from backend.schemas import (
     LoginRequest,
@@ -35,6 +40,8 @@ from backend.schemas import (
     DepartmentCreate,
     GradeCreate,
     SalaryGradeUpdate,
+    SubGradeCreate,
+    SubGradeUpdate,
     AttendanceCreate,
     PayrollRunRequest
 )
@@ -308,10 +315,15 @@ def list_employees(dept_id: Optional[str] = None, emp_id: Optional[str] = None, 
     conn = get_connection()
     c = conn.cursor()
     query = """
-        SELECT e.*, d.name AS dept_name, g.name AS grade_name, g.basic_pay, g.allowances, g.deductions
+        SELECT e.*, d.name AS dept_name, g.name AS grade_name, 
+               sg.name AS sub_grade_name,
+               COALESCE(sg.basic_pay, g.basic_pay) AS basic_pay,
+               COALESCE(sg.allowances, g.allowances) AS allowances,
+               COALESCE(sg.deductions, g.deductions) AS deductions
         FROM employees e
         JOIN departments d ON e.dept_id = d.id
         JOIN salary_grades g ON e.grade_id = g.id
+        LEFT JOIN salary_sub_grades sg ON e.sub_grade_id = sg.id
         WHERE 1=1
     """
     params = []
@@ -347,11 +359,11 @@ def create_employee(payload: EmployeeCreate, _user: dict = Depends(require_authe
     username = payload.username.strip().lower() if payload.username and payload.username.strip() else payload.email.split("@")[0].lower()
 
     try:
-        # 2. Insert into employees master table
+        # 2. Insert into employees master table with sub_grade_id
         c.execute("""
-            INSERT INTO employees (id, name, email, designation, dept_id, grade_id, status, avatar)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-        """, (new_id, payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.status, avatar))
+            INSERT INTO employees (id, name, email, designation, dept_id, grade_id, sub_grade_id, status, avatar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (new_id, payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.sub_grade_id, payload.status, avatar))
 
         # 3. Generate User ID (USR01, USR02, ...)
         c.execute("SELECT id FROM users;")
@@ -386,9 +398,9 @@ def update_employee(emp_id: str, payload: EmployeeCreate, _user: dict = Depends(
     try:
         c.execute("""
             UPDATE employees 
-            SET name = ?, email = ?, designation = ?, dept_id = ?, grade_id = ?, status = ?
+            SET name = ?, email = ?, designation = ?, dept_id = ?, grade_id = ?, sub_grade_id = ?, status = ?
             WHERE id = ?;
-        """, (payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.status, emp_id))
+        """, (payload.name, payload.email, payload.designation, payload.dept_id, payload.grade_id, payload.sub_grade_id, payload.status, emp_id))
 
         # Update login credentials if provided
         if payload.password and payload.password.strip():
@@ -510,6 +522,82 @@ def edit_grade(grade_id: str, payload: SalaryGradeUpdate, _user: dict = Depends(
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# -----------------------------------------------------------------------------
+# SALARY SUB-GRADES CRUD & CUSTOMIZATION
+# -----------------------------------------------------------------------------
+@app.get("/api/subgrades")
+def list_sub_grades(grade_id: Optional[str] = None, _user: dict = Depends(require_authenticated_user)):
+    """Fetches sub-grade pay tiers with customized basic pay, allowances, and deductions."""
+    try:
+        return get_sub_grades(grade_id=grade_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/subgrades/{sub_grade_id}")
+def retrieve_sub_grade(sub_grade_id: str, _user: dict = Depends(require_authenticated_user)):
+    """Fetches details for a single sub-grade."""
+    sub = get_sub_grade_by_id(sub_grade_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail=f"Sub-grade '{sub_grade_id}' not found.")
+    return sub
+
+@app.post("/api/subgrades")
+def api_create_sub_grade(payload: SubGradeCreate, _user: dict = Depends(require_authenticated_user)):
+    """Allows Admin to create a new sub-grade pay tier with customized amounts."""
+    if _user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only Admins can create sub-grades.")
+    try:
+        result = create_sub_grade(
+            grade_id=payload.grade_id,
+            name=payload.name,
+            basic_pay=payload.basic_pay,
+            allowances=payload.allowances,
+            deductions=payload.deductions,
+            description=payload.description or "",
+            custom_id=payload.id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/subgrades/{sub_grade_id}")
+def api_customize_sub_grade(sub_grade_id: str, payload: SubGradeUpdate, _user: dict = Depends(require_authenticated_user)):
+    """
+    Allows Admin to customize the amounts (basic pay, allowances, deductions)
+    for any sub-grade. Automatically fires SQLite audit log trigger!
+    """
+    if _user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only Admins can customize sub-grade amounts.")
+    try:
+        admin_name = _user.get("username", "ADMIN")
+        result = update_sub_grade(
+            sub_grade_id=sub_grade_id,
+            name=payload.name,
+            basic_pay=payload.basic_pay,
+            allowances=payload.allowances,
+            deductions=payload.deductions,
+            description=payload.description,
+            changed_by=payload.changed_by or admin_name
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/subgrades/{sub_grade_id}")
+def api_delete_sub_grade(sub_grade_id: str, _user: dict = Depends(require_authenticated_user)):
+    """Allows Admin to delete a sub-grade tier."""
+    if _user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only Admins can delete sub-grades.")
+    try:
+        delete_sub_grade(sub_grade_id)
+        return {"message": f"Sub-grade {sub_grade_id} deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

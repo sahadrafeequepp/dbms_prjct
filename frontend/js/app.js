@@ -8,6 +8,7 @@ let appData = {
   employees: [],
   departments: [],
   grades: [],
+  subGrades: [],
   attendance: [],
   payslips: []
 };
@@ -245,6 +246,7 @@ async function loadAndRenderAll() {
     appData.employees = await API.getEmployees('ALL', empId);
     appData.departments = isEmployee ? [] : await API.getDepartments();
     appData.grades = isEmployee ? [] : await API.getGrades();
+    appData.subGrades = isEmployee ? [] : await API.getSubGrades();
     appData.attendance = await API.getAttendance('June 2025', empId);
     appData.payslips = await API.getPayslips(empId);
 
@@ -253,6 +255,7 @@ async function loadAndRenderAll() {
     renderEmployeesTable();
     if (!isEmployee) {
       renderDepartmentsGrid();
+      renderSalarySubGradesTable();
       renderSalaryGradesTable();
       populateDeptFilterOptions();
     }
@@ -574,7 +577,10 @@ function renderRecentEmployeesTable() {
           </div>
         </td>
         <td>${deptName}</td>
-        <td class="mono font-semibold">${emp.grade_id || emp.gradeId}</td>
+        <td class="mono font-semibold">
+          ${emp.grade_id || emp.gradeId}
+          ${emp.sub_grade_id ? `<span class="subgrade-badge" style="font-size:10px; padding:1px 5px; margin-left:4px;">${emp.sub_grade_id}</span>` : ''}
+        </td>
         <td>
           <span class="status-badge ${isLeave ? 'badge-leave' : 'badge-active'}">
             ${emp.status}
@@ -607,7 +613,11 @@ function renderEmployeesTable() {
         <td style="font-size:12px; color:var(--text-muted);">${emp.email}</td>
         <td>${emp.designation}</td>
         <td><span class="dept-stat-pill">${deptName}</span></td>
-        <td class="mono font-semibold">${emp.grade_id || emp.gradeId} &bull; ${formatINR(basic)}</td>
+        <td class="mono font-semibold">
+          ${emp.grade_id || emp.gradeId}
+          ${emp.sub_grade_id ? `<span class="subgrade-badge" style="font-size:10px; padding:1px 5px; margin-left:4px;">${emp.sub_grade_id}</span>` : ''}
+          &bull; ${formatINR(basic)}
+        </td>
         <td>
           <span class="status-badge ${isLeave ? 'badge-leave' : 'badge-active'}">${emp.status}</span>
         </td>
@@ -655,8 +665,93 @@ function renderDepartmentsGrid() {
   }).join('');
 }
 
+function renderSalarySubGradesTable(filterGrade = null) {
+  const tbody = document.getElementById('salarySubGradesTableBody');
+  if (!tbody) return;
+
+  const activeFilter = filterGrade || (document.getElementById('subGradeFilterSelect') ? document.getElementById('subGradeFilterSelect').value : 'ALL');
+  let list = appData.subGrades || [];
+  if (activeFilter && activeFilter !== 'ALL') {
+    list = list.filter(sg => sg.grade_id === activeFilter);
+  }
+
+  // Update stat cards
+  const gradeCountEl = document.getElementById('statGradeCount');
+  if (gradeCountEl) gradeCountEl.innerText = `${appData.grades.length} Bands`;
+
+  const subGradeCountEl = document.getElementById('statSubGradeCount');
+  if (subGradeCountEl) subGradeCountEl.innerText = `${appData.subGrades.length} Tiers`;
+
+  const countLabel = document.getElementById('subGradeTableCountLabel');
+  if (countLabel) countLabel.innerText = `Showing ${list.length} of ${appData.subGrades.length} sub-grades`;
+
+  if (appData.subGrades.length > 0) {
+    const totalNet = appData.subGrades.reduce((sum, s) => {
+      const basic = Number(s.basic_pay || s.basicPay || 0);
+      const allow = Number(s.allowances || 0);
+      const ded = Number(s.deductions || 0);
+      return sum + (basic + allow - ded);
+    }, 0);
+    const avgNet = Math.round(totalNet / appData.subGrades.length);
+    const avgNetEl = document.getElementById('statAvgNetPay');
+    if (avgNetEl) avgNetEl.innerText = formatINR(avgNet);
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:28px; color:var(--text-muted);">No sub-grades found for the selected filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(sg => {
+    const basic = Number(sg.basic_pay || sg.basicPay || 0);
+    const allow = Number(sg.allowances || 0);
+    const ded = Number(sg.deductions || 0);
+    const gross = basic + allow;
+    const net = gross - ded;
+    const staffCount = sg.employee_count !== undefined 
+      ? sg.employee_count 
+      : appData.employees.filter(e => (e.sub_grade_id || e.subGradeId) === sg.id).length;
+
+    return `
+      <tr>
+        <td><span class="subgrade-badge">${sg.id}</span></td>
+        <td><span class="parent-grade-badge">${sg.grade_id}</span></td>
+        <td>
+          <div style="font-weight:700; color:var(--text);">${sg.name}</div>
+          ${sg.description ? `<div style="font-size:11px; color:var(--text-muted); max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sg.description}</div>` : ''}
+        </td>
+        <td class="mono font-semibold" style="color:var(--text);">${formatINR(basic)}</td>
+        <td class="mono" style="color:var(--emerald);">${formatINR(allow)}</td>
+        <td class="mono" style="color:var(--rose);">${formatINR(ded)}</td>
+        <td class="mono font-semibold">${formatINR(gross)}</td>
+        <td class="mono font-semibold" style="color:var(--emerald);">${formatINR(net)}</td>
+        <td>
+          <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:var(--bg-surface-secondary); color:var(--text-muted);">
+            👥 ${staffCount} staff
+          </span>
+        </td>
+        <td style="text-align: right; white-space: nowrap;">
+          <button class="btn-customize-amount admin-only" onclick="openCustomizeSubGradeModal('${sg.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            Customize Amount
+          </button>
+          <button onclick="deleteEntity('subgrade', '${sg.id}')" class="admin-only" style="color:var(--rose); font-size:12px; font-weight:600; margin-left:10px; background:none; border:none; cursor:pointer;">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterSubGradesByGrade(gradeId) {
+  renderSalarySubGradesTable(gradeId);
+}
+
 function renderSalaryGradesTable() {
   const tbody = document.getElementById('salaryGradesTableBody');
+  if (!tbody) return;
   tbody.innerHTML = appData.grades.map(g => {
     const basic = g.basic_pay || g.basicPay || 0;
     const allow = g.allowances || 0;
@@ -674,7 +769,7 @@ function renderSalaryGradesTable() {
         <td class="mono font-semibold">${formatINR(gross)}</td>
         <td class="mono font-semibold" style="color:var(--primary);">${formatINR(net)}</td>
         <td style="text-align: right;">
-          <button onclick="deleteEntity('grade', '${g.id}')" style="color:var(--rose); font-size:12px; font-weight:600;">Delete</button>
+          <button onclick="deleteEntity('grade', '${g.id}')" class="admin-only" style="color:var(--rose); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer;">Delete</button>
         </td>
       </tr>
     `;
@@ -786,7 +881,8 @@ function viewCertificate(slipId) {
   document.getElementById('cert-emp-name').innerText = slip.emp_name || emp.name || 'Staff';
   document.getElementById('cert-emp-id').innerText = slip.emp_id || emp.id || 'EMP001';
   document.getElementById('cert-dept').innerText = deptName;
-  document.getElementById('cert-grade').innerText = `${emp.grade_id || emp.gradeId || 'G2'} &bull; ${emp.designation || 'Specialist'}`;
+  const subGradeInfo = emp.sub_grade_id ? ` (Sub-Grade: ${emp.sub_grade_id})` : '';
+  document.getElementById('cert-grade').innerText = `${emp.grade_id || emp.gradeId || 'G2'}${subGradeInfo} &bull; ${emp.designation || 'Specialist'}`;
 
   const basic = slip.basic_pay !== undefined ? slip.basic_pay : slip.basicPay;
   const net = slip.net_salary !== undefined ? slip.net_salary : slip.netSalary;
@@ -884,9 +980,16 @@ function openEntityModal(entityType, editId = null) {
       </div>
       <div class="form-group">
         <label class="form-label">Salary Grade</label>
-        <select class="form-control" data-key="grade_id">
+        <select class="form-control" id="modalGradeSelect" data-key="grade_id" onchange="updateEmployeeModalSubGrades(this.value)">
           ${appData.grades.map(g => `<option value="${g.id}" ${rec && (rec.grade_id || rec.gradeId) === g.id ? 'selected' : ''}>${g.id} - ${g.name}</option>`).join('')}
         </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sub-Grade Pay Tier (Customized Amount)</label>
+        <select class="form-control" id="modalSubGradeSelect" data-key="sub_grade_id" onchange="updateEmployeeModalSalaryPreview(this.value)">
+          <!-- Populated dynamically based on chosen grade -->
+        </select>
+        <div id="modalSubGradePreview" class="subgrade-preview-card"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Status</label>
@@ -968,6 +1071,69 @@ function openEntityModal(entityType, editId = null) {
   }
 
   openModal('entityModal');
+
+  // If employee modal opened, populate sub-grade dropdown
+  if (entityType === 'employee') {
+    const rec = editId ? appData.employees.find(e => e.id === editId) : null;
+    const initialGrade = rec ? (rec.grade_id || rec.gradeId) : (appData.grades[0] ? appData.grades[0].id : 'G1');
+    const initialSub = rec ? (rec.sub_grade_id || rec.subGradeId) : null;
+    updateEmployeeModalSubGrades(initialGrade, initialSub);
+  }
+}
+
+function updateEmployeeModalSubGrades(gradeId, selectedSubId = null) {
+  const select = document.getElementById('modalSubGradeSelect');
+  if (!select) return;
+
+  const relevant = (appData.subGrades || []).filter(sg => sg.grade_id === gradeId);
+  if (relevant.length === 0) {
+    select.innerHTML = `<option value="">Standard Base Grade (No Sub-Grade)</option>`;
+    updateEmployeeModalSalaryPreview(null);
+    return;
+  }
+
+  select.innerHTML = relevant.map(sg => {
+    const basic = Number(sg.basic_pay || sg.basicPay || 0);
+    const allow = Number(sg.allowances || 0);
+    const ded = Number(sg.deductions || 0);
+    const net = basic + allow - ded;
+    const isSel = selectedSubId ? sg.id === selectedSubId : false;
+    return `<option value="${sg.id}" ${isSel ? 'selected' : ''}>${sg.id} - ${sg.name} (${formatINR(net)}/mo net)</option>`;
+  }).join('');
+
+  const targetSubId = selectedSubId || (relevant[0] ? relevant[0].id : null);
+  updateEmployeeModalSalaryPreview(targetSubId);
+}
+
+function updateEmployeeModalSalaryPreview(subGradeId) {
+  const previewEl = document.getElementById('modalSubGradePreview');
+  if (!previewEl) return;
+
+  const sg = (appData.subGrades || []).find(s => s.id === subGradeId);
+  if (!sg) {
+    const gradeSelect = document.getElementById('modalGradeSelect');
+    const g = gradeSelect ? (appData.grades || []).find(gr => gr.id === gradeSelect.value) : null;
+    if (g) {
+      const basic = Number(g.basic_pay || g.basicPay || 0);
+      const allow = Number(g.allowances || 0);
+      const ded = Number(g.deductions || 0);
+      previewEl.innerHTML = `💵 <strong>Standard Pay:</strong> Basic ${formatINR(basic)} | Allowances ${formatINR(allow)} | Deductions ${formatINR(ded)} | <span style="color:var(--emerald); font-weight:700;">Net ${formatINR(basic + allow - ded)}</span>`;
+    } else {
+      previewEl.innerHTML = `No custom tier selected.`;
+    }
+    return;
+  }
+
+  const basic = Number(sg.basic_pay || sg.basicPay || 0);
+  const allow = Number(sg.allowances || 0);
+  const ded = Number(sg.deductions || 0);
+  const gross = basic + allow;
+  const net = gross - ded;
+
+  previewEl.innerHTML = `
+    <div style="font-weight:700; color:var(--primary); margin-bottom:2px;">✨ Customized Tier: ${sg.name}</div>
+    <div>Basic: <strong>${formatINR(basic)}</strong> &bull; Allowances: <strong style="color:var(--emerald);">${formatINR(allow)}</strong> &bull; Deductions: <strong style="color:var(--rose);">${formatINR(ded)}</strong> &bull; Take-Home Net: <strong style="color:var(--emerald);">${formatINR(net)}</strong></div>
+  `;
 }
 
 async function handleEntitySubmit() {
@@ -996,6 +1162,9 @@ async function handleEntitySubmit() {
   } else if (activeEntity === 'department') {
     await API.createDepartment(data);
     showToast(`Added new department`);
+  } else if (activeEntity === 'grade') {
+    await API.createGrade(data);
+    showToast(`Added new salary grade`);
   } else if (activeEntity === 'attendance') {
     await API.createAttendance(data);
     showToast(`Attendance recorded`);
@@ -1015,6 +1184,7 @@ async function deleteEntity(entityType, id) {
   if (entityType === 'employee') await API.deleteEmployee(id);
   else if (entityType === 'department') await API.deleteDepartment(id);
   else if (entityType === 'grade') await API.deleteGrade(id);
+  else if (entityType === 'subgrade') await API.deleteSubGrade(id);
   else if (entityType === 'attendance') await API.deleteAttendance(id);
 
   showToast(`Deleted ${id}`);
@@ -1151,3 +1321,189 @@ function showToast(msg) {
     setTimeout(() => toast.remove(), 300);
   }, 3200);
 }
+
+// -----------------------------------------------------------------------------
+// SUB-GRADE SALARY AMOUNT CUSTOMIZER CONTROLLER
+// -----------------------------------------------------------------------------
+function openCustomizeSubGradeModal(subGradeId = null) {
+  if (!requireAuth('customize salary sub-grade amounts', () => openCustomizeSubGradeModal(subGradeId))) return;
+  if (currentUser && currentUser.role !== 'ADMIN') {
+    showToast('Access restricted: Only Admin can customize sub-grade pay structures.');
+    return;
+  }
+
+  const titleEl = document.getElementById('subGradeModalTitle');
+  const subtitleEl = document.getElementById('subGradeModalSubtitle');
+  const submitBtnText = document.getElementById('subGradeSubmitBtnText');
+  const parentSelect = document.getElementById('sgParentGrade');
+  const codeInput = document.getElementById('sgCodeId');
+  const nameInput = document.getElementById('sgName');
+  const basicInput = document.getElementById('sgBasicPay');
+  const allowInput = document.getElementById('sgAllowances');
+  const dedInput = document.getElementById('sgDeductions');
+  const descInput = document.getElementById('sgDescription');
+  const editModeInput = document.getElementById('sgEditMode');
+  const originalIdInput = document.getElementById('sgOriginalId');
+
+  // Populate parent grade dropdown
+  parentSelect.innerHTML = appData.grades.map(g => `<option value="${g.id}">${g.id} - ${g.name}</option>`).join('');
+
+  if (subGradeId) {
+    // Edit / Customize Mode
+    const sg = (appData.subGrades || []).find(s => s.id === subGradeId);
+    if (!sg) {
+      showToast(`Sub-grade ${subGradeId} not found.`);
+      return;
+    }
+
+    editModeInput.value = 'edit';
+    originalIdInput.value = sg.id;
+    titleEl.innerText = `Customize Amount: ${sg.id}`;
+    subtitleEl.innerText = `Adjust basic pay, allowances and deductions. This updates payslip formulas and logs to DBMS audit log.`;
+    submitBtnText.innerText = 'Save Customized Amounts';
+
+    parentSelect.value = sg.grade_id;
+    parentSelect.disabled = true; // Cannot re-parent during edit
+    codeInput.value = sg.id;
+    codeInput.disabled = true;
+    nameInput.value = sg.name;
+    basicInput.value = sg.basic_pay || sg.basicPay || 0;
+    allowInput.value = sg.allowances || 0;
+    dedInput.value = sg.deductions || 0;
+    descInput.value = sg.description || '';
+  } else {
+    // Add / Create Mode
+    editModeInput.value = 'create';
+    originalIdInput.value = '';
+    titleEl.innerText = 'Add New Salary Sub-Grade';
+    subtitleEl.innerText = 'Create a granular compensation tier with custom basic pay, allowances, and deductions.';
+    submitBtnText.innerText = 'Create Sub-Grade Tier';
+
+    const defaultGrade = appData.grades[0] ? appData.grades[0].id : 'G1';
+    parentSelect.value = defaultGrade;
+    parentSelect.disabled = false;
+    codeInput.disabled = false;
+
+    // Suggest code
+    const existing = (appData.subGrades || []).filter(s => s.grade_id === defaultGrade);
+    const nextLetter = String.fromCharCode(65 + existing.length);
+    codeInput.value = `SG${defaultGrade.replace('G', '')}-${nextLetter}`;
+
+    const parentG = appData.grades.find(g => g.id === defaultGrade);
+    nameInput.value = `${parentG ? parentG.name : 'Executive'} - Tier ${nextLetter}`;
+    basicInput.value = parentG ? (parentG.basic_pay || parentG.basicPay || 35000) : 35000;
+    allowInput.value = parentG ? (parentG.allowances || 5000) : 5000;
+    dedInput.value = parentG ? (parentG.deductions || 2500) : 2500;
+    descInput.value = '';
+  }
+
+  handleSubGradeParentGradeChange();
+  recalcSubGradeModalPreview();
+  openModal('subGradeModal');
+}
+
+function handleSubGradeParentGradeChange() {
+  const parentSelect = document.getElementById('sgParentGrade');
+  const codeInput = document.getElementById('sgCodeId');
+  const nameInput = document.getElementById('sgName');
+  const basicInput = document.getElementById('sgBasicPay');
+  const hintEl = document.getElementById('sgBaseBasicHint');
+  const editMode = document.getElementById('sgEditMode').value;
+
+  const gradeId = parentSelect.value;
+  const parentG = appData.grades.find(g => g.id === gradeId);
+
+  if (parentG && hintEl) {
+    const parentBasic = parentG.basic_pay || parentG.basicPay || 0;
+    hintEl.innerText = `Base grade basic: ${formatINR(parentBasic)}`;
+  }
+
+  if (editMode === 'create') {
+    const existing = (appData.subGrades || []).filter(s => s.grade_id === gradeId);
+    const nextLetter = String.fromCharCode(65 + existing.length);
+    codeInput.value = `SG${gradeId.replace('G', '')}-${nextLetter}`;
+    if (!nameInput.value || nameInput.value.includes('Tier')) {
+      nameInput.value = `${parentG ? parentG.name : 'Grade'} - Tier ${nextLetter}`;
+    }
+    if (parentG && (!basicInput.value || Number(basicInput.value) === 0)) {
+      basicInput.value = parentG.basic_pay || parentG.basicPay || 35000;
+    }
+  }
+
+  recalcSubGradeModalPreview();
+}
+
+function recalcSubGradeModalPreview() {
+  const basic = Number(document.getElementById('sgBasicPay').value) || 0;
+  const allow = Number(document.getElementById('sgAllowances').value) || 0;
+  const ded = Number(document.getElementById('sgDeductions').value) || 0;
+
+  const gross = basic + allow;
+  const net = gross - ded;
+
+  const grossEl = document.getElementById('sgPreviewGross');
+  const netEl = document.getElementById('sgPreviewNet');
+
+  if (grossEl) grossEl.innerText = formatINR(gross);
+  if (netEl) netEl.innerText = formatINR(net);
+}
+
+async function handleSubGradeSubmit(event) {
+  event.preventDefault();
+  if (currentUser && currentUser.role !== 'ADMIN') {
+    showToast('Only Admin can customize sub-grade salary tiers.');
+    return;
+  }
+
+  const editMode = document.getElementById('sgEditMode').value;
+  const origId = document.getElementById('sgOriginalId').value;
+  const gradeId = document.getElementById('sgParentGrade').value;
+  const codeId = document.getElementById('sgCodeId').value.trim().toUpperCase();
+  const name = document.getElementById('sgName').value.trim();
+  const basicPay = Number(document.getElementById('sgBasicPay').value) || 0;
+  const allowances = Number(document.getElementById('sgAllowances').value) || 0;
+  const deductions = Number(document.getElementById('sgDeductions').value) || 0;
+  const description = document.getElementById('sgDescription').value.trim();
+
+  if (!codeId || !name || basicPay <= 0) {
+    showToast('Please enter a valid Sub-Grade code, title, and positive basic pay.');
+    return;
+  }
+
+  const submitBtn = document.getElementById('subGradeSubmitBtn');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    if (editMode === 'edit') {
+      await API.updateSubGrade(origId, {
+        name,
+        basic_pay: basicPay,
+        allowances,
+        deductions,
+        description,
+        changed_by: currentUser ? currentUser.username : 'ADMIN'
+      });
+      showToast(`Customized amounts saved for ${origId}! Logged to DBMS audit log.`);
+    } else {
+      await API.createSubGrade({
+        id: codeId,
+        grade_id: gradeId,
+        name,
+        basic_pay: basicPay,
+        allowances,
+        deductions,
+        description
+      });
+      showToast(`Created sub-grade tier ${codeId} with customized amounts!`);
+    }
+
+    closeModal('subGradeModal');
+    await loadAndRenderAll();
+  } catch (err) {
+    console.error('Error submitting sub-grade:', err);
+    showToast(`Error: ${err.message || 'Failed to save sub-grade'}`);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+

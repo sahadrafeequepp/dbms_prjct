@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS salary_grades (
 );
 
 -- ----------------------------------------------------------------------------
+-- 2B. SALARY SUB-GRADES TABLE (CUSTOMIZABLE SALARY TIERS)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS salary_sub_grades (
+    id VARCHAR(10) PRIMARY KEY,
+    grade_id VARCHAR(10) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    basic_pay REAL NOT NULL CHECK (basic_pay > 0),
+    allowances REAL NOT NULL DEFAULT 0.0 CHECK (allowances >= 0),
+    deductions REAL NOT NULL DEFAULT 0.0 CHECK (deductions >= 0),
+    description TEXT,
+    FOREIGN KEY (grade_id) REFERENCES salary_grades(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ----------------------------------------------------------------------------
 -- 3. EMPLOYEES MASTER TABLE
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS employees (
@@ -45,10 +59,12 @@ CREATE TABLE IF NOT EXISTS employees (
     designation VARCHAR(100) NOT NULL,
     dept_id VARCHAR(10) NOT NULL,
     grade_id VARCHAR(10) NOT NULL,
+    sub_grade_id VARCHAR(10),
     status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'On Leave', 'Resigned', 'Suspended')),
     avatar TEXT,
     FOREIGN KEY (dept_id) REFERENCES departments(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    FOREIGN KEY (grade_id) REFERENCES salary_grades(id) ON DELETE RESTRICT ON UPDATE CASCADE
+    FOREIGN KEY (grade_id) REFERENCES salary_grades(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    FOREIGN KEY (sub_grade_id) REFERENCES salary_sub_grades(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- ----------------------------------------------------------------------------
@@ -119,6 +135,8 @@ CREATE TABLE IF NOT EXISTS salary_audit_log (
 -- Index foreign keys and search filter predicates for O(log N) lookup
 CREATE INDEX IF NOT EXISTS idx_emp_dept ON employees(dept_id);
 CREATE INDEX IF NOT EXISTS idx_emp_grade ON employees(grade_id);
+CREATE INDEX IF NOT EXISTS idx_emp_subgrade ON employees(sub_grade_id);
+CREATE INDEX IF NOT EXISTS idx_subgrade_grade ON salary_sub_grades(grade_id);
 CREATE INDEX IF NOT EXISTS idx_emp_status ON employees(status);
 CREATE INDEX IF NOT EXISTS idx_user_auth ON users(username, password);
 CREATE INDEX IF NOT EXISTS idx_att_month ON attendance(month);
@@ -182,6 +200,39 @@ BEGIN
         'SYSTEM_ADMIN',
         CURRENT_TIMESTAMP,
         'UPDATE'
+    );
+END;
+
+-- TRIGGER 3: Log every sub-grade salary customization into salary_audit_log table
+CREATE TRIGGER IF NOT EXISTS trg_salary_sub_grades_update_audit
+AFTER UPDATE OF basic_pay, allowances, deductions ON salary_sub_grades
+FOR EACH ROW
+WHEN (OLD.basic_pay != NEW.basic_pay OR OLD.allowances != NEW.allowances OR OLD.deductions != NEW.deductions)
+BEGIN
+    INSERT INTO salary_audit_log (
+        grade_id,
+        grade_name,
+        old_basic_pay,
+        new_basic_pay,
+        old_allowances,
+        new_allowances,
+        old_deductions,
+        new_deductions,
+        changed_by,
+        changed_at,
+        action_type
+    ) VALUES (
+        NEW.id,
+        'SubGrade: ' || NEW.name || ' (' || NEW.grade_id || ')',
+        OLD.basic_pay,
+        NEW.basic_pay,
+        OLD.allowances,
+        NEW.allowances,
+        OLD.deductions,
+        NEW.deductions,
+        'SYSTEM_ADMIN',
+        CURRENT_TIMESTAMP,
+        'SUBGRADE_UPDATE'
     );
 END;
 
